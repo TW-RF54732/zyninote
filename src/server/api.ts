@@ -1,8 +1,15 @@
 import { Hono, type Context } from "hono";
 import { addCard, CheatError, removeCard, reorderCards, repointCard, today, type StoredCard } from "../pipeline/cheats.ts";
 import type { Indexer } from "../pipeline/indexer.ts";
+import { TagError, type TagStore } from "../pipeline/tags.ts";
+import type { TagWriteResult } from "../shared/types.ts";
 
-export function createApi(indexer: Indexer) {
+export type ApiOptions = {
+  /** Resyncs the index and notifies browsers; tag writes wait for it so their answer is followed by fresh data. */
+  resync: () => Promise<void>;
+};
+
+export function createApi(indexer: Indexer, { resync }: ApiOptions) {
   const app = new Hono().basePath("/api");
 
   // The index changes on every edit; a browser-cached response would be shown with the wrong shape or stale content.
@@ -55,6 +62,30 @@ export function createApi(indexer: Indexer) {
   app.delete("/cheats/:subject/cards/:id", (c) => writeCheats(c, (_subject, cards) => removeCard(cards, c.req.param("id")!)));
   app.patch("/cheats/:subject/cards/:id", (c) => writeCheats(c, (subject, cards, body) => repointCard(subject, cards, c.req.param("id")!, body.ref)));
   app.put("/cheats/:subject/order", (c) => writeCheats(c, (_subject, cards, body) => reorderCards(cards, body.ids)));
+
+  // Search: `q` is split on whitespace and every term must match; `subject` limits the scope.
+  app.get("/search", (c) => c.json(indexer.search(c.req.query("q") ?? "", c.req.query("subject") || undefined)));
+
+  // Tags. Writes rewrite the notes' frontmatter (or TSX meta) and the registry in _subject.md.
+  const writeTags = async (c: Context, write: (tags: TagStore, subject: string, body: Record<string, unknown>) => Promise<TagWriteResult>) => {
+    const subject = c.req.param("subject")!;
+    if (!indexer.hasSubject(subject)) return c.json({ error: "找不到此科目" }, 404);
+    const body: Record<string, unknown> = await c.req.json().catch(() => ({}));
+    let result: TagWriteResult;
+    try {
+      result = await write(indexer.tags, subject, body);
+    } catch (error) {
+      if (error instanceof TagError) return c.json({ error: error.message, ...(error.unregistered ? { unregistered: error.unregistered } : {}) }, error.status);
+      throw error;
+    }
+    await resync();
+    return c.json(result);
+  };
+
+  app.put("/tags/:subject/notes/:slug", (c) => writeTags(c, (tags, subject, body) => tags.setNoteTags(subject, c.req.param("slug")!, body.tags, body.register === true)));
+  app.post("/tags/:subject/register", (c) => writeTags(c, (tags, subject, body) => tags.register(subject, body.tag)));
+  app.post("/tags/:subject/rename", (c) => writeTags(c, (tags, subject, body) => tags.rename(subject, body.from, body.to)));
+  app.post("/tags/:subject/remove", (c) => writeTags(c, (tags, subject, body) => tags.remove(subject, body.tag)));
 
   return app;
 }

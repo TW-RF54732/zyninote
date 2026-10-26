@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useTree } from "../data.ts";
+import { Search } from "./Search.tsx";
 
-/** Breadcrumbs: Zyninote / subject / note. */
+/** Breadcrumbs (Zyninote / subject / note), search and the problem count. */
 export function Header() {
   const [location] = useLocation();
   const { data: tree } = useTree();
@@ -33,11 +34,14 @@ export function Header() {
           </>
         )}
       </nav>
-      {problems > 0 && (
-        <Link href="/_problems" className="header-problems">
-          {problems} 個問題
-        </Link>
-      )}
+      <div className="header-tools">
+        <Search />
+        {problems > 0 && (
+          <Link href="/_problems" className="header-problems">
+            {problems} 個問題
+          </Link>
+        )}
+      </div>
     </header>
   );
 }

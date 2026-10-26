@@ -24,10 +24,14 @@ let running: Promise<void> = Promise.resolve();
 vite.watcher.on("all", (_event, file) => {
   if (!file.startsWith(contentDir)) return;
   clearTimeout(timer);
-  timer = setTimeout(() => {
-    running = running.then(resync, resync);
-  }, 50);
+  timer = setTimeout(queueResync, 50);
 });
+
+/** Syncs run one at a time; the promise settles once this one has finished. */
+function queueResync(): Promise<void> {
+  running = running.then(resync, resync);
+  return running;
+}
 
 async function resync() {
   let result: SyncResult;
@@ -42,7 +46,7 @@ async function resync() {
   vite.hot.send({ type: "custom", event: "zyninote:update", data: { changed: result.changed } satisfies UpdateEvent });
 }
 
-const api = getRequestListener(createApi(indexer).fetch);
+const api = getRequestListener(createApi(indexer, { resync: queueResync }).fetch);
 const indexHtml = join(root, "src/client/index.html");
 
 httpServer.on("request", (req, res) => {

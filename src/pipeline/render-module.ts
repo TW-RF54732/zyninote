@@ -16,6 +16,10 @@ export type RenderedModule = {
  */
 export async function renderModule(vite: ViteDevServer, root: string, file: string, path: string): Promise<RenderedModule> {
   const url = `/${relative(root, file).split("\\").join("/")}`;
+  // A note is only rebuilt when its source changed, but Vite's invalidation arrives with the watcher, which can be
+  // later than the sync (tag writes resync right away). Drop the cached module so the current source is loaded.
+  const graph = vite.environments.ssr.moduleGraph;
+  graph.getModulesByFile(file)?.forEach((cached) => graph.invalidateModule(cached));
   const mod = await vite.ssrLoadModule(url);
   const Component = mod.default as ComponentType | undefined;
   if (typeof Component !== "function") throw new Error("缺少 default export 的元件");

@@ -4,7 +4,7 @@ import { Backlinks } from "../components/Backlinks.tsx";
 import { NoteBody } from "../components/NoteBody.tsx";
 import { PageToc } from "../components/PageToc.tsx";
 import { Pager } from "../components/Pager.tsx";
-import { Tags } from "../components/Tags.tsx";
+import { TagEditor } from "../components/TagEditor.tsx";
 import { usePage, useTree } from "../data.ts";
 
 export function NotePage({ subject, slug }: { subject: string; slug: string }) {
@@ -49,7 +49,7 @@ export function NotePage({ subject, slug }: { subject: string; slug: string }) {
           <p className="eyebrow">{subjectSummary?.meta.title ?? subject}</p>
           <h1>{page.meta.title}</h1>
           {page.meta.summary && <p className="lead">{page.meta.summary}</p>}
-          <Tags tags={page.meta.tags} />
+          <TagEditor key={page.path} subject={subject} slug={slug} tags={page.meta.tags} registered={subjectSummary?.meta.tags ?? []} />
         </header>
         <NoteBody page={page} />
         <Backlinks backlinks={page.backlinks} subjectTitle={subjectSummary?.meta.title} />

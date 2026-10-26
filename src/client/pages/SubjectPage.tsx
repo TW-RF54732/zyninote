@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link } from "wouter";
 import { Backlinks } from "../components/Backlinks.tsx";
 import { NoteBody } from "../components/NoteBody.tsx";
+import { TagManager } from "../components/TagManager.tsx";
 import { Tags } from "../components/Tags.tsx";
 import { TocTree } from "../components/TocTree.tsx";
 import { useSubject } from "../data.ts";
@@ -54,6 +55,8 @@ export function SubjectPage({ name }: { name: string }) {
           ))}
         </ol>
       </section>
+
+      <TagManager subject={subject} />
 
       {page && <Backlinks backlinks={page.backlinks} subjectTitle={subject.meta.title} />}
     </>

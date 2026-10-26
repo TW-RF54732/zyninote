@@ -13,6 +13,8 @@ export type PageMeta = {
 
 export type SubjectMeta = {
   title: string;
+  /** Tags registered for this subject (`tags:` in _subject.md), in the order written. */
+  tags: string[];
   summary?: string;
   order?: number;
 };
@@ -158,3 +160,31 @@ export type CheatSheetView = {
   /** Set when _cheats.json cannot be parsed; writes are refused until it is fixed. */
   error: string | null;
 };
+
+/** Text with [start, end) ranges of the query's matches. */
+export type SearchText = { text: string; matches: [number, number][] };
+
+/** One block found by search: a section, or a page's own entry (title, summary and tags) when `section` is null. */
+export type SearchHit = {
+  subject: string;
+  subjectTitle: string;
+  /** Page key. */
+  page: string;
+  pageTitle: string;
+  section: { id: string; title: string } | null;
+  url: string;
+  /** The heading, or the page title for a page's own entry. */
+  title: SearchText;
+  /** A window of the block's text around the first match; `before`/`after` say whether text was cut off. */
+  snippet: SearchText & { before: boolean; after: boolean };
+};
+
+export type SearchResponse = {
+  query: string;
+  hits: SearchHit[];
+  /** Number of matching blocks, which may exceed `hits`. */
+  total: number;
+};
+
+/** A tag write's answer: content-relative paths of the files rewritten. */
+export type TagWriteResult = { files: string[] };

@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { CheatCardView, CheatSheetView, PageView, SubjectResponse, Tree, UpdateEvent } from "../shared/types.ts";
+import type { CheatCardView, CheatSheetView, PageView, SearchResponse, SubjectResponse, TagWriteResult, Tree, UpdateEvent } from "../shared/types.ts";
 
 // Every content update bumps the version, so every mounted query refetches.
 let version = 0;
@@ -7,10 +7,14 @@ const listeners = new Set<() => void>();
 
 if (import.meta.hot) {
   import.meta.hot.on("zyninote:update", (_event: UpdateEvent) => {
-    version++;
-    listeners.forEach((listener) => listener());
+    refetchAll();
     for (const [subject, count] of watchedSheets) if (count > 0) void loadCheats(subject);
   });
+}
+
+function refetchAll() {
+  version++;
+  listeners.forEach((listener) => listener());
 }
 
 function subscribe(listener: () => void) {
@@ -24,11 +28,13 @@ function useContentVersion() {
 
 type Query<T> = { data: T | null; error: string | null; loading: boolean };
 
-function useApi<T>(url: string): Query<T> {
+/** `url` null means nothing to fetch. */
+function useApi<T>(url: string | null): Query<T> {
   const v = useContentVersion();
-  const [state, setState] = useState<{ url: string; data: T | null; error: string | null }>({ url, data: null, error: null });
+  const [state, setState] = useState<{ url: string | null; data: T | null; error: string | null }>({ url, data: null, error: null });
 
   useEffect(() => {
+    if (url === null) return;
     let alive = true;
     fetchShared<T>(url, v).then(
       (data) => alive && setState({ url, data, error: null }),
@@ -39,6 +45,7 @@ function useApi<T>(url: string): Query<T> {
     };
   }, [url, v]);
 
+  if (url === null) return { data: null, error: null, loading: false };
   // While a refetch of the same URL is in flight, keep showing the previous data.
   if (state.url !== url) return { data: null, error: null, loading: true };
   return { data: state.data, error: state.error, loading: !state.data && !state.error };
@@ -69,6 +76,41 @@ export const useSubject = (name: string) => useApi<SubjectResponse>(`/api/subjec
 export const usePage = (subject: string, slug: string) => useApi<PageView>(`/api/page/${encodeURIComponent(subject)}/${encodeURIComponent(slug)}`);
 /** Any page by key: "subject/slug" for a note, "subject/" for a subject's _subject.md. */
 export const usePageByKey = (key: string) => useApi<PageView>(`/api/page/${key.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`);
+/** Block search; an empty query fetches nothing. */
+export const useSearch = (query: string, subject: string | null) =>
+  useApi<SearchResponse>(query.trim() ? `/api/search?${new URLSearchParams({ q: query, ...(subject ? { subject } : {}) })}` : null);
+
+/** A tag write rejected because some tags are not registered yet. */
+export class UnregisteredTagsError extends Error {
+  constructor(
+    message: string,
+    public tags: string[],
+  ) {
+    super(message);
+  }
+}
+
+// Tag writes rewrite notes and _subject.md; the server resyncs before answering, so refetching then shows the result.
+async function writeTags(subject: string, path: string, method: string, body: unknown): Promise<TagWriteResult> {
+  const res = await fetch(`/api/tags/${encodeURIComponent(subject)}${path}`, {
+    method,
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw Array.isArray(data.unregistered) ? new UnregisteredTagsError(data.error, data.unregistered) : new Error(data.error ?? res.statusText);
+  refetchAll();
+  return data as TagWriteResult;
+}
+
+/** Sets a note's tags; `register` also registers the ones the subject does not know yet. */
+export const setNoteTags = (subject: string, slug: string, tags: string[], register: boolean) =>
+  writeTags(subject, `/notes/${encodeURIComponent(slug)}`, "PUT", { tags, register });
+export const registerTag = (subject: string, tag: string) => writeTags(subject, "/register", "POST", { tag });
+/** Renames a tag in every note of the subject; renaming onto an existing tag merges the two. */
+export const renameTag = (subject: string, from: string, to: string) => writeTags(subject, "/rename", "POST", { from, to });
+export const removeTag = (subject: string, tag: string) => writeTags(subject, "/remove", "POST", { tag });
 // Cheat sheets have their own store so a write updates the buttons and the panel at once (optimistically), without
 // refetching every page. Every load and write takes a sequence number; a response older than what is shown is dropped.
 type SheetState = { sheet: CheatSheetView | null; error: string | null };

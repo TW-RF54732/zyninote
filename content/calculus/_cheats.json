@@ -1,5 +1,7 @@
 {
   "cards": [
-    { "id": "c_2c4c", "ref": "ch2-derivatives.md#微分規則", "added": "2026-10-26" }
+    { "id": "c_e5f5", "ref": "ch1-limits.md#直觀意義", "added": "2026-10-26" },
+    { "id": "c_b651", "ref": "ch1-limits.md#重要極限", "added": "2026-10-26" },
+    { "id": "c_484a", "ref": "ch1-limits.md#epsilon-delta", "added": "2026-10-26" }
   ]
 }

@@ -21,13 +21,14 @@ export function normalizePageMeta(data: Record<string, unknown> | undefined, fal
 export function normalizeSubjectMeta(data: Record<string, unknown> | undefined, fallbackTitle: string): SubjectMeta {
   const meta: SubjectMeta = {
     title: typeof data?.title === "string" && data.title.trim() ? data.title.trim() : fallbackTitle,
+    tags: toStringList(data?.tags),
   };
   if (typeof data?.order === "number") meta.order = data.order;
   if (typeof data?.summary === "string") meta.summary = data.summary;
   return meta;
 }
 
-function toStringList(value: unknown): string[] {
+export function toStringList(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String);
   if (typeof value === "string") return [value];
   return [];

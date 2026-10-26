@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import type { Page } from "../shared/types.ts";
 
 /** Bump whenever rendering or segmenting output changes, to invalidate existing caches. */
-export const PIPELINE_VERSION = 2;
+export const PIPELINE_VERSION = 3;
 
 export type CacheEntry = {
   hash: string;

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Zyninote is a study-notes system: users write `.md` / `.mdx` / `.tsx` under `content/`, and the system provides navigation, TOCs, styling and features. `PLAN.md` is the authoritative spec, written in Traditional Chinese with phased milestones. Phases 1–3 (pipeline, links, cheat sheet) are done; later phases cover tags/search and agent docs. `README.md` records decisions that deviate from or extend PLAN.md. Keep it updated when making new ones.
+Zyninote is a study-notes system: users write `.md` / `.mdx` / `.tsx` under `content/`, and the system provides navigation, TOCs, styling and features. `PLAN.md` is the authoritative spec, written in Traditional Chinese with phased milestones. Phases 1–4 (pipeline, links, cheat sheet, tags/search) are done; Phase 5 covers agent docs. `README.md` records decisions that deviate from or extend PLAN.md. Keep it updated when making new ones.
 
 ## Commands
 
@@ -48,6 +48,17 @@ Each format renders to HTML whose headings are wrapped in `<section class="zn-se
 - **Server** (`src/pipeline/cheats.ts`): `CheatStore` reads the file fresh on every request and serializes writes per subject (temp file + rename, one card per line, unknown fields kept, malformed files never overwritten). `describeCards` resolves cards against the index into `CheatCardView`s plus diagnostics; the indexer reruns it on every `sync()`. The API lives under `/api/cheats/:subject`.
 - **Client**: `CheatPanel` (mounted in `App`) is the edge dock; cards render through `BlockView`, so they follow source edits. `useCheatAdd` (used by `NoteBody` only) injects the heading `+` buttons into the DOM and asks before adding an overlapping block (`relatedSections`). Filtering (`filterCards`) and drag reordering (`moveCard`) are pure functions in `src/shared/cheats.ts`.
 - **Client store**: cheat sheets have their own store in `data.ts` (not `useApi`). Writes apply an optimistic result at once, then the server response; sequence numbers drop stale responses. `zyninote:update` reloads watched sheets.
+
+### Tags
+
+- **Data**: a note's `tags` live in its frontmatter (TSX: `export const meta`); `_subject.md`'s `tags:` is the subject's registry, exposed as `SubjectMeta.tags`. `checkTags` (`src/pipeline/tags.ts`) warns about unregistered tags on every `sync()`, like the link and cheat checks.
+- **Writes** (`TagStore`, API under `/api/tags/:subject`): set a note's tags (409 with `unregistered` unless `register`), register, rename (renaming onto an existing tag merges), remove. Files are read fresh from disk; every new file content is computed and verified (`writeTags` re-reads the result) before anything is written, so one unrewritable file aborts the whole operation. Only the `tags` entry is rewritten textually; the rest of the frontmatter must read back unchanged. TSX notes whose `tags` is not a string-array literal fall back to the indexed tags and fail only if they need rewriting.
+- **Sync after writes**: tag routes await `resync` (passed from `main.ts`, the same serialized queue the watcher uses) before answering. Because that sync can run before the watcher's HMR invalidation, `renderModule` invalidates the note's SSR module itself before loading it.
+- **Client**: `TagEditor` (note header) and `TagManager` (subject page); writes call `refetchAll()` in `data.ts`.
+
+### Search
+
+`src/pipeline/search.ts`: one document per section plus one per page (title, summary, tags), built lazily after each `sync()` in reading order. Every whitespace-separated term must occur (substring, `fold` = per-character NFKC + lowercase that keeps string length so match offsets map to the original text) in the heading, the block text or the page title. `GET /api/search?q=&subject=`; the client is `Search` in the header.
 
 ### Indexing, cache and live update
 

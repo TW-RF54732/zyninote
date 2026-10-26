@@ -3,7 +3,7 @@ import { readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { ViteDevServer } from "vite";
 import { pageKeyOf, pageUrl } from "../shared/links.ts";
-import type { CheatSheetView, Diagnostic, Format, NoteSummary, Page, PageView, SubjectResponse, SubjectSummary, Tree } from "../shared/types.ts";
+import type { CheatSheetView, Diagnostic, Format, NoteSummary, Page, PageView, SearchResponse, SubjectResponse, SubjectSummary, Tree } from "../shared/types.ts";
 import { Cache, type CacheEntry } from "./cache.ts";
 import { CheatStore, describeCards } from "./cheats.ts";
 import { checkLinks, type LinkIndex } from "./link-check.ts";
@@ -11,7 +11,9 @@ import { normalizePageMeta, normalizeSubjectMeta, readFrontmatter } from "./meta
 import { createMarkdownRenderer } from "./render-md.ts";
 import { renderModule } from "./render-module.ts";
 import { compareByOrder, scanContent, type ScanResult } from "./scan.ts";
+import { buildSearchDocs, search, type SearchDoc } from "./search.ts";
 import { segment } from "./segment.ts";
+import { checkTags, TagStore } from "./tags.ts";
 
 type Source = { path: string; subject: string; slug: string; format: Format; isSubject: boolean };
 
@@ -35,14 +37,19 @@ export class Indexer {
   private fileHashes = new Map<string, { mtimeMs: number; size: number; hash: string }>();
   private links: LinkIndex = { diagnostics: [], backlinks: new Map(), broken: new Map() };
   private cheatDiagnostics: Diagnostic[] = [];
+  private tagDiagnostics: Diagnostic[] = [];
+  /** Built on the first search after a sync. */
+  private searchDocs: SearchDoc[] | null = null;
   private byKey = new Map<string, Page>();
   private renderMarkdown: ReturnType<typeof createMarkdownRenderer>;
 
   readonly cheats: CheatStore;
+  readonly tags: TagStore;
 
   constructor(private opts: { root: string; contentDir: string; cacheDir: string; vite: ViteDevServer }) {
     this.cache = new Cache(opts.cacheDir);
     this.cheats = new CheatStore(opts.contentDir);
+    this.tags = new TagStore(opts.contentDir, (path) => this.pages.get(path)?.meta.tags);
     this.entries = this.cache.loadEntries();
     this.renderMarkdown = createMarkdownRenderer(opts.contentDir);
   }
@@ -85,7 +92,7 @@ export class Indexer {
 
     if (changed.length) this.cache.saveEntries(this.entries);
 
-    const before = new Set([...this.links.diagnostics, ...this.cheatDiagnostics].map(diagnosticKey));
+    const before = new Set(this.crossPageDiagnostics().map(diagnosticKey));
     this.byKey = new Map([...this.pages.values()].map((page) => [pageKeyOf(page.path), page]));
     this.links = checkLinks({
       pages: [...this.pages.values()],
@@ -101,7 +108,10 @@ export class Indexer {
     });
     // Cheat sheets live in content/ and are cheap to read, so they are rechecked on every sync rather than cached.
     this.cheatDiagnostics = this.scan.subjects.flatMap((dir) => this.describeCheats(dir.name).diagnostics);
-    diagnostics.push(...[...this.links.diagnostics, ...this.cheatDiagnostics].filter((d) => !before.has(diagnosticKey(d))));
+    // Tag registration depends on _subject.md, so it is checked here rather than when a note is built.
+    this.tagDiagnostics = checkTags([...this.pages.values()], (subject) => this.subjectMeta(subject).tags);
+    this.searchDocs = null;
+    diagnostics.push(...this.crossPageDiagnostics().filter((d) => !before.has(diagnosticKey(d))));
     return { changed, diagnostics, ms: performance.now() - start };
   }
 
@@ -132,7 +142,20 @@ export class Indexer {
   }
 
   allDiagnostics(): Diagnostic[] {
-    return [...this.scan.diagnostics, ...[...this.pages.values()].flatMap((p) => p.diagnostics), ...this.links.diagnostics, ...this.cheatDiagnostics];
+    return [...this.scan.diagnostics, ...[...this.pages.values()].flatMap((p) => p.diagnostics), ...this.crossPageDiagnostics()];
+  }
+
+  /** Block-level full-text search, optionally limited to one subject. */
+  search(query: string, subject?: string): SearchResponse {
+    if (!this.searchDocs) {
+      // Reading order: subjects and notes as in the tree, each subject's _subject.md first.
+      const ordered = this.getTree().subjects.flatMap((s) => {
+        const file = this.scan.subjects.find((d) => d.name === s.name)?.subjectFile;
+        return [file, ...s.notes.map((n) => n.path)].flatMap((path) => (path && this.pages.get(path)) || []);
+      });
+      this.searchDocs = buildSearchDocs(ordered, (name) => this.subjectMeta(name).title);
+    }
+    return search(this.searchDocs, query, { subject });
   }
 
   hasSubject(name: string): boolean {
@@ -149,6 +172,11 @@ export class Indexer {
   private describeCheats(subject: string) {
     const file = this.cheats.read(subject);
     return { file, ...describeCards(subject, file, (key) => this.byKey.get(key)) };
+  }
+
+  /** Diagnostics computed over the whole index after every sync. */
+  private crossPageDiagnostics(): Diagnostic[] {
+    return [...this.links.diagnostics, ...this.cheatDiagnostics, ...this.tagDiagnostics];
   }
 
   private view(page: Page): PageView {
