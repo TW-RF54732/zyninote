@@ -242,12 +242,10 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
   .zn-section > :first-child:hover > .zn-cheat-add, .zn-cheat-add:focus-visible { opacity: 1; }
 }
 
-/* Cheat sheet: the dock at the right edge */
-/* A floating, rounded card. Collapsed, it slides off the right edge so only its `‹` strip shows; it never moves the page. */
+/* Cheat sheet: a floating, rounded card docked to a screen corner (data-h, data-v). Collapsed, it slides off its side
+   edge so only the arrow strip shows; it never moves the page. */
 .cheat-dock {
   position: fixed;
-  right: 12px;
-  bottom: 16px;
   z-index: 15;
   display: flex;
   height: min(72vh, calc(100vh - 32px));
@@ -255,12 +253,19 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
   border-radius: 14px;
   box-shadow: 0 0 0 1px rgb(255 255 255 / .06), 0 18px 48px rgb(0 0 0 / .55);
   overflow: hidden;
-  /* Off screen except the 28px strip: shift by the card's width plus the 12px gap, minus the strip. */
-  transform: translateX(calc(100% - 16px));
   transition: transform 220ms cubic-bezier(.2, .8, .2, 1), box-shadow 220ms;
 }
-.cheat-dock[data-open] { transform: none; }
-.cheat-dock[data-resizing] { user-select: none; cursor: ew-resize; }
+.cheat-dock[data-h="right"] { right: 12px; }
+.cheat-dock[data-h="left"] { left: 12px; flex-direction: row-reverse; }
+.cheat-dock[data-v="bottom"] { bottom: 16px; }
+.cheat-dock[data-v="top"] { top: 16px; }
+/* Off screen except the 28px strip: shift by the card's width plus the 12px gap, minus the strip. */
+.cheat-dock[data-h="right"]:not([data-open]) { transform: translateX(calc(100% - 16px)); }
+.cheat-dock[data-h="left"]:not([data-open]) { transform: translateX(calc(-100% + 16px)); }
+.cheat-dock[data-gesture] { user-select: none; }
+.cheat-dock[data-gesture="width"] { cursor: ew-resize; }
+.cheat-dock[data-gesture="height"] { cursor: ns-resize; }
+.cheat-dock[data-gesture="move"], .cheat-dock[data-gesture="move"] * { cursor: grabbing !important; }
 .cheat-handle {
   flex-shrink: 0;
   width: 28px;
@@ -273,8 +278,15 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
   transition: color 150ms, background 150ms;
 }
 .cheat-handle:hover, .cheat-handle[aria-pressed="true"] { color: var(--text); }
-.cheat-resize { position: absolute; top: 0; bottom: 0; left: 0; z-index: 2; width: 6px; cursor: ew-resize; touch-action: none; }
-.cheat-resize:hover, .cheat-dock[data-resizing] .cheat-resize { background: rgb(255 255 255 / .06); }
+/* Resize grips sit on the edges away from the docked corner. */
+.cheat-resize { position: absolute; z-index: 2; touch-action: none; }
+.cheat-resize:hover, .cheat-dock[data-gesture="width"] .cheat-resize-x, .cheat-dock[data-gesture="height"] .cheat-resize-y { background: rgb(255 255 255 / .06); }
+.cheat-resize-x { top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.cheat-dock[data-h="right"] .cheat-resize-x { left: 0; }
+.cheat-dock[data-h="left"] .cheat-resize-x { right: 0; }
+.cheat-resize-y { left: 0; right: 0; height: 6px; cursor: ns-resize; }
+.cheat-dock[data-v="bottom"] .cheat-resize-y { top: 0; }
+.cheat-dock[data-v="top"] .cheat-resize-y { bottom: 0; }
 .cheat-dock-body { flex: 1; min-width: 0; display: flex; }
 .cheat-panel {
   flex: 1;
@@ -288,7 +300,8 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
 }
 
 /* Inside the card: no rules or boxes, only spacing and text weight separate things. */
-.cheat-panel-head { position: sticky; top: 0; z-index: 1; display: grid; gap: 6px; padding: 12px 16px 8px; background: var(--surface-2); }
+/* The header's empty area is the card's grip: drag it to move the card to another corner. */
+.cheat-panel-head { position: sticky; top: 0; z-index: 1; display: grid; gap: 6px; padding: 12px 16px 8px; background: var(--surface-2); cursor: grab; touch-action: none; }
 .cheat-modes { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
 .cheat-toggle { padding: 2px 0; border: 0; background: transparent; color: var(--faint); font-size: 13px; cursor: pointer; transition: color 150ms; }
 .cheat-toggle:hover { color: var(--muted); }

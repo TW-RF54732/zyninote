@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { cardRefFor, filterCards, moveCard, type CheatFilter, type CheatMode } from "../../shared/cheats.ts";
 import { pageKeyFromPathname } from "../../shared/links.ts";
@@ -10,6 +10,7 @@ import { BlockView } from "./BlockView.tsx";
 /** The card's width is the user's (resized by dragging its left edge) and survives reloads. */
 const MIN_WIDTH = 300;
 const DEFAULT_WIDTH = 420;
+const MIN_HEIGHT = 200;
 /** A hover-opened card closes only once the mouse is this far outside it, so small overshoots do not close it. */
 const CLOSE_MARGIN = 20;
 
@@ -34,37 +35,65 @@ export function CheatPanel() {
   return <Dock key={subject} subject={subject} currentPage={page} />;
 }
 
+/** The screen corner the card is docked to; it slides out of the left or right edge. */
+type Corner = { h: "left" | "right"; v: "top" | "bottom" };
+const DEFAULT_CORNER: Corner = { h: "right", v: "bottom" };
+
+/** A pointer drag on the card: resizing one of its inner edges, or moving it by its header. */
+type Gesture = { kind: "width" | "height" | "move"; startX: number; startY: number; startWidth: number; startHeight: number; rect: DOMRect };
+
 /**
- * A floating card that slides in from the right edge. Collapsed, it sits almost entirely off screen with only its `‹`
- * strip showing; hovering slides it in at once and moving CLOSE_MARGIN away slides it out; clicking pins it in (touch screens only use
- * clicks). Dragging the open card's left edge resizes it. It is purely an overlay and never changes the page layout.
+ * A floating card docked to a screen corner. Collapsed, it sits almost entirely off its side edge with only the arrow
+ * strip showing; hovering slides it in at once and moving CLOSE_MARGIN away slides it out; clicking pins it in (touch
+ * screens only use clicks). Its inner edges resize it (double-click resets), and dragging the header moves it: on release
+ * it snaps to the nearest corner. It is purely an overlay and never changes the page layout.
  */
 function Dock({ subject, currentPage }: { subject: string; currentPage: string }) {
   const { data: sheet } = useCheats(subject);
   const [pinned, setPinned] = useStored("zyninote:cheats:pinned", false);
   const [savedWidth, setSavedWidth] = useStored("zyninote:cheats:width", DEFAULT_WIDTH);
+  // 0 means the default height from the stylesheet.
+  const [savedHeight, setSavedHeight] = useStored("zyninote:cheats:height", 0);
+  const [corner, setCorner] = useStored<Corner>("zyninote:cheats:corner", DEFAULT_CORNER);
   const [hovering, setHovering] = useState(false);
-  const [resize, setResize] = useState<{ startX: number; startWidth: number; width: number } | null>(null);
+  const [gesture, setGesture] = useState<Gesture | null>(null);
+  const [at, setAt] = useState({ x: 0, y: 0 });
   const pointer = useRef("");
   const dockRef = useRef<HTMLDivElement>(null);
+  /** Where the card was dropped, to animate from there to its new corner. */
+  const dropRect = useRef<DOMRect | null>(null);
+  /** After a move the card has slid away from the pointer; keep it open until the pointer comes back to it. */
+  const holdOpen = useRef(false);
   const open = pinned || hovering;
-  const resizing = resize !== null;
-  const width = clampWidth(resize?.width ?? savedWidth);
+  const right = corner.h === "right";
+  const bottom = corner.v === "bottom";
+
+  // Resizing grows the card away from its corner, so the edge being dragged follows the pointer.
+  const dx = at.x - (gesture?.startX ?? 0);
+  const dy = at.y - (gesture?.startY ?? 0);
+  const width = clampWidth(gesture?.kind === "width" ? gesture.startWidth + (right ? -dx : dx) : savedWidth);
+  const height = gesture?.kind === "height" ? clampHeight(gesture.startHeight + (bottom ? -dy : dy)) : savedHeight ? clampHeight(savedHeight) : undefined;
+
   // Cards load on first open, then stay mounted so the card can slide out with its content.
   const [opened, setOpened] = useState(open);
   if (open && !opened) setOpened(true);
 
   useEffect(() => {
-    if (!hovering || pinned || resizing) return;
+    if (!hovering || pinned || gesture) return;
     const onMove = (event: PointerEvent) => {
       const rect = dockRef.current?.getBoundingClientRect();
       if (event.pointerType !== "mouse" || !rect) return;
       const { clientX: x, clientY: y } = event;
+      if (holdOpen.current) {
+        // Back over the card (it may never have left after a short move): normal closing resumes.
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) holdOpen.current = false;
+        return;
+      }
       if (x < rect.left - CLOSE_MARGIN || x > rect.right + CLOSE_MARGIN || y < rect.top - CLOSE_MARGIN || y > rect.bottom + CLOSE_MARGIN) setHovering(false);
     };
     document.addEventListener("pointermove", onMove);
     return () => document.removeEventListener("pointermove", onMove);
-  }, [hovering, pinned, resizing]);
+  }, [hovering, pinned, gesture]);
 
   useEffect(() => {
     if (!hovering || pinned) return;
@@ -72,6 +101,52 @@ function Dock({ subject, currentPage }: { subject: string; currentPage: string }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [hovering, pinned]);
+
+  // While a gesture runs, follow the pointer anywhere on the page; on release, commit the size or snap to a corner.
+  useEffect(() => {
+    if (!gesture) return;
+    const onMove = (event: PointerEvent) => setAt({ x: event.clientX, y: event.clientY });
+    const onUp = (event: PointerEvent) => {
+      const mx = event.clientX - gesture.startX;
+      const my = event.clientY - gesture.startY;
+      if (gesture.kind === "width") setSavedWidth(clampWidth(gesture.startWidth + (right ? -mx : mx)));
+      else if (gesture.kind === "height") setSavedHeight(clampHeight(gesture.startHeight + (bottom ? -my : my)));
+      else {
+        const { rect } = gesture;
+        dropRect.current = new DOMRect(rect.x + mx, rect.y + my, rect.width, rect.height);
+        holdOpen.current = true;
+        const cx = rect.x + mx + rect.width / 2;
+        const cy = rect.y + my + rect.height / 2;
+        setCorner({ h: cx < window.innerWidth / 2 ? "left" : "right", v: cy < window.innerHeight / 2 ? "top" : "bottom" });
+      }
+      setGesture(null);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [gesture, right, bottom, setSavedWidth, setSavedHeight, setCorner]);
+
+  // After a drop, animate from where the card was let go to its corner (FLIP).
+  useLayoutEffect(() => {
+    const dock = dockRef.current;
+    const from = dropRect.current;
+    if (!dock || !from || gesture) return;
+    dropRect.current = null;
+    // Measure the untransformed position at the new corner. Removing the drag transform has already started a CSS
+    // transition, so measuring without first freezing it would include that in-flight offset and the card would jump.
+    dock.style.transition = "none";
+    dock.style.transform = "none";
+    const to = dock.getBoundingClientRect();
+    dock.style.transform = `translate(${from.x - to.x}px, ${from.y - to.y}px)`;
+    dock.getBoundingClientRect();
+    dock.style.transition = "";
+    dock.style.transform = "";
+  }, [corner, gesture]);
 
   // A subject that does not exist (404) has no cheat sheet.
   if (!sheet) return null;
@@ -83,42 +158,58 @@ function Dock({ subject, currentPage }: { subject: string; currentPage: string }
     setPinned(next);
   };
 
-  const onResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
+  const startGesture = (kind: Gesture["kind"]) => (event: ReactPointerEvent) => {
+    if (event.button !== 0 || !dockRef.current) return;
+    // The header's own controls keep working; only its empty area moves the card.
+    if (kind === "move" && (event.target as Element).closest("button, input, label, select, a, .cheat-menu")) return;
     event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setResize({ startX: event.clientX, startWidth: width, width });
+    const rect = dockRef.current.getBoundingClientRect();
+    setAt({ x: event.clientX, y: event.clientY });
+    setGesture({ kind, startX: event.clientX, startY: event.clientY, startWidth: rect.width, startHeight: rect.height, rect });
   };
-  const onResizeMove = (event: ReactPointerEvent) => {
-    if (resize) setResize({ ...resize, width: resize.startWidth + resize.startX - event.clientX });
-  };
-  const onResizeEnd = () => {
-    if (resize) setSavedWidth(clampWidth(resize.width));
-    setResize(null);
-  };
+
+  // Collapsed, the card hides past its side edge, so the arrow points inward; open, it points back out.
+  const arrow = open === right ? "›" : "‹";
 
   return (
     <div
       ref={dockRef}
       className="cheat-dock"
+      data-h={corner.h}
+      data-v={corner.v}
       data-open={open || undefined}
-      data-resizing={resize ? "" : undefined}
-      style={{ width }}
-      onPointerEnter={(event) => isMouse(event) && setHovering(true)}
+      data-gesture={gesture?.kind}
+      style={{
+        width,
+        height,
+        ...(gesture?.kind === "move" ? { transform: `translate(${dx}px, ${dy}px)`, transition: "none" } : {}),
+      }}
+      onPointerEnter={(event) => {
+        if (!isMouse(event)) return;
+        holdOpen.current = false;
+        setHovering(true);
+      }}
       onPointerDownCapture={(event) => (pointer.current = event.pointerType)}
     >
       {open && (
-        <div
-          className="cheat-resize"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="調整 cheat sheet 寬度"
-          onPointerDown={onResizeStart}
-          onPointerMove={onResizeMove}
-          onPointerUp={onResizeEnd}
-          onPointerCancel={onResizeEnd}
-          onDoubleClick={() => setSavedWidth(DEFAULT_WIDTH)}
-        />
+        <>
+          <div
+            className="cheat-resize cheat-resize-x"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="調整 cheat sheet 寬度"
+            onPointerDown={startGesture("width")}
+            onDoubleClick={() => setSavedWidth(DEFAULT_WIDTH)}
+          />
+          <div
+            className="cheat-resize cheat-resize-y"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="調整 cheat sheet 高度"
+            onPointerDown={startGesture("height")}
+            onDoubleClick={() => setSavedHeight(0)}
+          />
+        </>
       )}
       <button
         type="button"
@@ -129,20 +220,24 @@ function Dock({ subject, currentPage }: { subject: string; currentPage: string }
         title="Cheat sheet"
         onClick={() => pin(!pinned)}
       >
-        {open ? "›" : "‹"}
+        {arrow}
       </button>
       {opened && (
         <div className="cheat-dock-body" inert={!open}>
-          <Panel subject={subject} currentPage={currentPage} cards={sheet.cards} fileError={sheet.error} open={open} />
+          <Panel subject={subject} currentPage={currentPage} cards={sheet.cards} fileError={sheet.error} open={open} onMoveStart={startGesture("move")} />
         </div>
       )}
     </div>
   );
 }
 
-/** Keeps the open card between MIN_WIDTH and the viewport (minus a gutter). */
+/** Keeps the card between MIN_WIDTH and the viewport (minus a gutter). */
 function clampWidth(width: number): number {
   return Math.round(Math.max(Math.min(MIN_WIDTH, window.innerWidth - 24), Math.min(width, window.innerWidth - 24)));
+}
+
+function clampHeight(height: number): number {
+  return Math.round(Math.max(Math.min(MIN_HEIGHT, window.innerHeight - 32), Math.min(height, window.innerHeight - 32)));
 }
 
 type PanelProps = {
@@ -152,9 +247,11 @@ type PanelProps = {
   fileError: string | null;
   /** Whether the dock is open; the filter menu closes with it. */
   open: boolean;
+  /** Pointer down on the header: drag the card to another corner. */
+  onMoveStart: (event: ReactPointerEvent) => void;
 };
 
-function Panel({ subject, currentPage, cards, fileError, open }: PanelProps) {
+function Panel({ subject, currentPage, cards, fileError, open, onMoveStart }: PanelProps) {
   const { data: tree } = useTree();
   const notes = tree?.subjects.find((s) => s.name === subject)?.notes ?? [];
   const [filter, setFilter] = useStored<StoredFilter>(`zyninote:cheats:${subject}`, DEFAULT_FILTER);
@@ -209,7 +306,7 @@ function Panel({ subject, currentPage, cards, fileError, open }: PanelProps) {
 
   return (
     <section className="cheat-panel" aria-label="Cheat sheet">
-      <header className="cheat-panel-head">
+      <header className="cheat-panel-head" onPointerDown={onMoveStart}>
         <div className="cheat-modes" role="group" aria-label="顯示模式">
           {MODES.map(({ mode, label, title }) =>
             mode === "advance" ? (
@@ -475,13 +572,17 @@ function useStored<T>(key: string, initial: T): [T, (value: T) => void] {
       return initial;
     }
   });
-  const set = (next: T) => {
-    setValue(next);
-    try {
-      localStorage.setItem(key, JSON.stringify(next));
-    } catch {
-      // Storage may be unavailable (private mode); the state still works for this visit.
-    }
-  };
+  // Stable, so effects can depend on it.
+  const set = useCallback(
+    (next: T) => {
+      setValue(next);
+      try {
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        // Storage may be unavailable (private mode); the state still works for this visit.
+      }
+    },
+    [key],
+  );
   return [value, set];
 }
