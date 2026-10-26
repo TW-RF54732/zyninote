@@ -133,7 +133,7 @@ function Dock({ subject, currentPage }: { subject: string; currentPage: string }
       </button>
       {opened && (
         <div className="cheat-dock-body" inert={!open}>
-          <Panel subject={subject} currentPage={currentPage} cards={sheet.cards} fileError={sheet.error} pinned={pinned} onPin={pin} />
+          <Panel subject={subject} currentPage={currentPage} cards={sheet.cards} fileError={sheet.error} open={open} />
         </div>
       )}
     </div>
@@ -150,11 +150,11 @@ type PanelProps = {
   currentPage: string;
   cards: CheatCardView[];
   fileError: string | null;
-  pinned: boolean;
-  onPin: (pinned: boolean) => void;
+  /** Whether the dock is open; the filter menu closes with it. */
+  open: boolean;
 };
 
-function Panel({ subject, currentPage, cards, fileError, pinned, onPin }: PanelProps) {
+function Panel({ subject, currentPage, cards, fileError, open }: PanelProps) {
   const { data: tree } = useTree();
   const notes = tree?.subjects.find((s) => s.name === subject)?.notes ?? [];
   const [filter, setFilter] = useStored<StoredFilter>(`zyninote:cheats:${subject}`, DEFAULT_FILTER);
@@ -175,42 +175,90 @@ function Panel({ subject, currentPage, cards, fileError, pinned, onPin }: PanelP
     ...notes.map((note) => ({ key: `${subject}/${note.slug}`, title: note.meta.title })),
   ];
   const tags = [...new Set(notes.flatMap((note) => note.meta.tags))];
+  const filterCount = filter.chapters.length + filter.tags.length;
+
+  // The filter menu floats over the cards, so opening it never moves anything. Outside clicks and Esc close it.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) setMenuOpen(false);
+  }, [open]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!menuRef.current?.contains(target) && !menuButtonRef.current?.contains(target)) setMenuOpen(false);
+    };
+    // Captured on the document so Esc closes only the menu, not the hover-opened dock as well.
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setMenuOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [menuOpen]);
+
   const toggle = (list: string[], value: string) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
   return (
     <section className="cheat-panel" aria-label="Cheat sheet">
       <header className="cheat-panel-head">
-        <div className="cheat-panel-title">
-          <h2>Cheat sheet</h2>
-          <span className="card-meta">
-            {visible.length === cards.length ? cards.length : `${visible.length} / ${cards.length}`}
-          </span>
-          <button type="button" className="cheat-pin" aria-pressed={pinned} onClick={() => onPin(!pinned)}>
-            {pinned ? "取消固定" : "固定"}
-          </button>
+        <div className="cheat-modes" role="group" aria-label="顯示模式">
+          {MODES.map(({ mode, label, title }) =>
+            mode === "advance" ? (
+              <button
+                key={mode}
+                ref={menuButtonRef}
+                type="button"
+                className="cheat-toggle"
+                title={title}
+                aria-pressed={filter.mode === mode}
+                aria-expanded={menuOpen}
+                aria-haspopup="true"
+                onClick={() => {
+                  setFilter({ ...filter, mode });
+                  setMenuOpen(filter.mode !== mode || !menuOpen);
+                }}
+              >
+                {label}
+                {filterCount > 0 && ` (${filterCount})`} ▾
+              </button>
+            ) : (
+              <button key={mode} type="button" className="cheat-toggle" title={title} aria-pressed={filter.mode === mode} onClick={() => setFilter({ ...filter, mode })}>
+                {label}
+              </button>
+            ),
+          )}
+          <span className="cheat-count">{visible.length === cards.length ? cards.length : `${visible.length} / ${cards.length}`}</span>
         </div>
-        <div className="cheat-segmented" role="group" aria-label="顯示模式">
-          {MODES.map(({ mode, label, title }) => (
-            <button key={mode} type="button" title={title} aria-pressed={filter.mode === mode} onClick={() => setFilter({ ...filter, mode })}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {filter.mode === "advance" && (
-          <div className="cheat-filters">
-            <ChipGroup label="章節" options={chapters.map((c) => ({ value: c.key, label: c.title }))} selected={filter.chapters} onToggle={(v) => setFilter({ ...filter, chapters: toggle(filter.chapters, v) })} />
+        {menuOpen && (
+          <div className="cheat-menu" ref={menuRef} role="group" aria-label="篩選條件">
+            <CheckGroup label="章節" options={chapters.map((c) => ({ value: c.key, label: c.title }))} selected={filter.chapters} onToggle={(v) => setFilter({ ...filter, chapters: toggle(filter.chapters, v) })} />
             {tags.length > 0 && (
-              <ChipGroup label="Tag" options={tags.map((t) => ({ value: t, label: t }))} selected={filter.tags} onToggle={(v) => setFilter({ ...filter, tags: toggle(filter.tags, v) })}>
-                <div className="cheat-segmented cheat-tagmode" role="group" aria-label="多個 tag 的組合方式">
-                  <button type="button" aria-pressed={filter.tagMode === "any"} onClick={() => setFilter({ ...filter, tagMode: "any" })}>
+              <CheckGroup label="Tag" inline options={tags.map((t) => ({ value: t, label: t }))} selected={filter.tags} onToggle={(v) => setFilter({ ...filter, tags: toggle(filter.tags, v) })} />
+            )}
+            <div className="cheat-menu-foot">
+              {tags.length > 0 && (
+                <span className="cheat-menu-tagmode" role="group" aria-label="多個 tag 的組合方式">
+                  <button type="button" className="cheat-toggle" aria-pressed={filter.tagMode === "any"} onClick={() => setFilter({ ...filter, tagMode: "any" })}>
                     聯集
                   </button>
-                  <button type="button" aria-pressed={filter.tagMode === "all"} onClick={() => setFilter({ ...filter, tagMode: "all" })}>
+                  <button type="button" className="cheat-toggle" aria-pressed={filter.tagMode === "all"} onClick={() => setFilter({ ...filter, tagMode: "all" })}>
                     交集
                   </button>
-                </div>
-              </ChipGroup>
-            )}
+                </span>
+              )}
+              <button type="button" className="cheat-toggle cheat-menu-clear" disabled={!filterCount} onClick={() => setFilter({ ...filter, chapters: [], tags: [] })}>
+                清除
+              </button>
+            </div>
           </div>
         )}
       </header>
@@ -237,25 +285,26 @@ function Panel({ subject, currentPage, cards, fileError, pinned, onPin }: PanelP
   );
 }
 
-type ChipGroupProps = {
+type CheckGroupProps = {
   label: string;
   options: { value: string; label: string }[];
   selected: string[];
   onToggle: (value: string) => void;
-  children?: ReactNode;
+  /** Lay the options out in a wrapping row (tags) rather than one per line (chapters). */
+  inline?: boolean;
 };
 
-function ChipGroup({ label, options, selected, onToggle, children }: ChipGroupProps) {
+function CheckGroup({ label, options, selected, onToggle, inline }: CheckGroupProps) {
   return (
-    <div className="cheat-chip-group" role="group" aria-label={label}>
-      <span className="cheat-chip-label">{label}</span>
+    <fieldset className="cheat-check-group" data-inline={inline || undefined}>
+      <legend>{label}</legend>
       {options.map((option) => (
-        <button key={option.value} type="button" className="cheat-chip" aria-pressed={selected.includes(option.value)} onClick={() => onToggle(option.value)}>
+        <label key={option.value} className="cheat-check">
+          <input type="checkbox" checked={selected.includes(option.value)} onChange={() => onToggle(option.value)} />
           {option.label}
-        </button>
+        </label>
       ))}
-      {children}
-    </div>
+    </fieldset>
   );
 }
 
@@ -327,6 +376,7 @@ function CardList({ cards, subject, notes, onReorder, onError, empty }: CardList
             data-dragged={drag?.id === card.id || undefined}
             style={drag?.id === card.id ? { transform: `translateY(${drag.dy}px)` } : undefined}
           >
+            {/* The card's own heading row replaces the block's heading: drag handle, title, then the chapter in small type. */}
             <div className="cheat-card-head">
               <button
                 type="button"
@@ -351,12 +401,12 @@ function CardList({ cards, subject, notes, onReorder, onError, empty }: CardList
                     goTo(card.url!);
                   }}
                 >
-                  <span className="cheat-card-page">{card.pageTitle}</span>
-                  <span className="cheat-card-section">{card.sectionTitle}</span>
+                  {card.sectionTitle}
                 </a>
               ) : (
                 <span className="cheat-card-title cheat-card-ref">{card.ref}</span>
               )}
+              {card.pageTitle && <span className="cheat-card-chapter">{card.pageTitle}</span>}
               <button type="button" className="cheat-remove" aria-label="移除卡片" title="移除卡片" onClick={() => removeCheat(subject, card.id).catch(onError)}>
                 ×
               </button>

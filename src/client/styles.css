@@ -252,15 +252,13 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
   display: flex;
   height: min(72vh, calc(100vh - 32px));
   background: var(--surface-2);
-  border: 1px solid var(--line-strong);
   border-radius: 14px;
-  box-shadow: 0 18px 48px rgb(0 0 0 / .5);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .06), 0 18px 48px rgb(0 0 0 / .55);
   overflow: hidden;
   /* Off screen except the 28px strip: shift by the card's width plus the 12px gap, minus the strip. */
   transform: translateX(calc(100% - 16px));
   transition: transform 220ms cubic-bezier(.2, .8, .2, 1), box-shadow 220ms;
 }
-.cheat-dock:not([data-open]) { box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
 .cheat-dock[data-open] { transform: none; }
 .cheat-dock[data-resizing] { user-select: none; cursor: ew-resize; }
 .cheat-handle {
@@ -268,16 +266,15 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
   width: 28px;
   padding: 0;
   border: 0;
-  border-right: 1px solid var(--line);
   background: transparent;
-  color: var(--muted);
+  color: var(--faint);
   font-size: 18px;
   cursor: pointer;
   transition: color 150ms, background 150ms;
 }
-.cheat-handle:hover, .cheat-handle[aria-pressed="true"] { color: var(--text); background: #292929; }
+.cheat-handle:hover, .cheat-handle[aria-pressed="true"] { color: var(--text); }
 .cheat-resize { position: absolute; top: 0; bottom: 0; left: 0; z-index: 2; width: 6px; cursor: ew-resize; touch-action: none; }
-.cheat-resize:hover, .cheat-dock[data-resizing] .cheat-resize { background: var(--line-strong); }
+.cheat-resize:hover, .cheat-dock[data-resizing] .cheat-resize { background: rgb(255 255 255 / .06); }
 .cheat-dock-body { flex: 1; min-width: 0; display: flex; }
 .cheat-panel {
   flex: 1;
@@ -290,62 +287,80 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
   scrollbar-color: var(--line-strong) transparent;
 }
 
-.cheat-panel-head { position: sticky; top: 0; z-index: 1; display: grid; gap: 10px; padding: 14px 16px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
-.cheat-panel-title { display: flex; align-items: baseline; gap: 10px; }
-.cheat-panel-title h2 { margin: 0; font-size: 15px; font-weight: 600; }
-.cheat-pin { margin-left: auto; }
-.cheat-pin, .cheat-segmented button, .cheat-chip, .cheat-repoint button, .cheat-notice button {
-  min-height: 30px;
-  padding: 2px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 13px;
-  cursor: pointer;
+/* Inside the card: no rules or boxes, only spacing and text weight separate things. */
+.cheat-panel-head { position: sticky; top: 0; z-index: 1; display: grid; gap: 6px; padding: 12px 16px 8px; background: var(--surface-2); }
+.cheat-modes { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+.cheat-toggle { padding: 2px 0; border: 0; background: transparent; color: var(--faint); font-size: 13px; cursor: pointer; transition: color 150ms; }
+.cheat-toggle:hover { color: var(--muted); }
+.cheat-toggle[aria-pressed="true"] { color: var(--text); }
+.cheat-count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.cheat-toggle:disabled { opacity: .4; cursor: default; }
+/* The filter menu floats below the header, over the cards. */
+.cheat-menu {
+  position: absolute;
+  top: calc(100% - 4px);
+  left: 12px;
+  right: 12px;
+  z-index: 3;
+  display: grid;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 12px 14px;
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .06), 0 12px 32px rgb(0 0 0 / .5);
 }
-.cheat-pin:hover, .cheat-segmented button:hover, .cheat-chip:hover, .cheat-repoint button:hover:not(:disabled) { color: var(--text); background: #292929; }
-.cheat-pin[aria-pressed="true"], .cheat-segmented button[aria-pressed="true"], .cheat-chip[aria-pressed="true"] { color: var(--background); background: var(--text); border-color: var(--text); }
-.cheat-segmented { display: flex; }
-.cheat-segmented button { flex: 1; border-radius: 0; margin-left: -1px; }
-.cheat-segmented button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
-.cheat-segmented button:last-child { border-radius: 0 6px 6px 0; }
-.cheat-filters { display: grid; gap: 8px; }
-.cheat-chip-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.cheat-chip-label { font-size: 12px; color: var(--faint); min-width: 2.5em; }
-.cheat-chip { border-radius: 999px; min-height: 26px; font-size: 12px; }
-.cheat-tagmode { margin-left: auto; }
-.cheat-tagmode button { flex: none; min-height: 26px; font-size: 12px; }
+.cheat-check-group { display: grid; gap: 2px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.cheat-check-group[data-inline] { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.cheat-check-group legend { float: left; width: 100%; margin-bottom: 4px; padding: 0; font-size: 11px; color: var(--faint); }
+.cheat-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.cheat-check:has(input:checked) { color: var(--text); }
+.cheat-check input { margin: 0; accent-color: #d6d6d6; }
+.cheat-menu-foot { display: flex; align-items: baseline; gap: 12px; }
+.cheat-menu-tagmode { display: flex; gap: 12px; }
+.cheat-menu-clear { margin-left: auto; }
 
-.cheat-notice { display: flex; align-items: flex-start; gap: 8px; margin: 12px 16px 0; padding: 10px 12px; font-size: 13px; }
-.cheat-notice button { margin-left: auto; min-height: 24px; padding: 0 8px; color: inherit; }
-.cheat-empty { color: var(--muted); font-size: 14px; padding: 8px 20px; }
+.cheat-notice { display: flex; align-items: flex-start; gap: 8px; margin: 8px 16px 0; padding: 8px 12px; font-size: 13px; }
+.cheat-notice button { margin-left: auto; padding: 0 4px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.cheat-empty { color: var(--faint); font-size: 13px; padding: 4px 16px; }
 
-.cheat-list { list-style: none; margin: 0; padding: 12px 12px 32px; display: grid; gap: 12px; }
-.cheat-card { position: relative; background: var(--background); border: 1px solid var(--line); border-radius: 10px; }
-.cheat-card[data-dragged] { z-index: 2; opacity: .85; border-color: #6a6a6a; box-shadow: 0 12px 32px rgb(0 0 0 / .5); }
-.cheat-card[data-drop]::after { content: ""; position: absolute; left: 8px; right: 8px; height: 2px; border-radius: 1px; background: var(--text); }
-.cheat-card[data-drop="before"]::after { top: -8px; }
-.cheat-card[data-drop="after"]::after { bottom: -8px; }
+.cheat-list { list-style: none; margin: 0; padding: 0 0 24px; }
+/* One thin rule between cards; nothing else divides the panel. */
+.cheat-card { position: relative; padding: 14px 16px 10px 28px; }
+.cheat-card + .cheat-card { border-top: 1px solid var(--line); }
+.cheat-card[data-dragged] { z-index: 2; background: var(--surface-2); opacity: .85; }
+.cheat-card[data-drop]::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; background: var(--muted); }
+.cheat-card[data-drop="before"]::after { top: -1px; }
+.cheat-card[data-drop="after"]::after { bottom: -1px; }
 .cheat-list[data-dragging] { user-select: none; }
-.cheat-card-head { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-bottom: 1px solid var(--line); }
-.cheat-drag, .cheat-remove { flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--faint); cursor: pointer; }
-.cheat-drag { cursor: grab; touch-action: none; }
+.cheat-card-head { position: relative; display: flex; align-items: baseline; gap: 10px; }
+.cheat-card-title { min-width: 0; font-size: 16px; font-weight: 600; line-height: 1.4; color: var(--text); overflow-wrap: anywhere; }
+a.cheat-card-title:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #777; }
+.cheat-card-ref { font-family: var(--mono); font-size: 13px; font-weight: 400; color: var(--muted); }
+/* The chapter sits on the title's baseline, pushed right. */
+.cheat-card-chapter { flex-shrink: 0; max-width: 45%; margin-left: auto; font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Drag handle in the left gutter and remove at the far right, both shown on hover (faintly always on touch). */
+.cheat-drag, .cheat-remove { flex-shrink: 0; padding: 0; border: 0; background: transparent; color: var(--faint); font-size: 13px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 150ms, color 150ms; }
+.cheat-drag { position: absolute; left: -22px; top: .2em; width: 18px; height: 20px; cursor: grab; touch-action: none; }
+.cheat-card-title + .cheat-remove { margin-left: auto; }
+.cheat-card:hover :is(.cheat-drag, .cheat-remove), .cheat-drag:focus-visible, .cheat-remove:focus-visible, .cheat-card[data-dragged] .cheat-drag { opacity: 1; }
+@media (hover: none) { .cheat-drag, .cheat-remove { opacity: .5; } }
 .cheat-list[data-dragging] .cheat-drag { cursor: grabbing; }
-.cheat-drag:hover, .cheat-remove:hover { color: var(--text); background: #292929; }
-.cheat-card-title { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 2px 4px; font-size: 13px; line-height: 1.4; }
-.cheat-card-page { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cheat-card-section { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
-a.cheat-card-title:hover .cheat-card-section { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #777; }
-.cheat-card-ref { font-family: var(--mono); color: var(--muted); overflow-wrap: anywhere; }
-.cheat-card-body { max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; padding: 0 14px 8px 26px; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
-.cheat-card-body .note-body h2 { font-size: 20px; letter-spacing: -.3px; }
-.cheat-card-body .note-body h3 { font-size: 17px; }
-.cheat-invalid { padding: 10px 14px 14px; }
-.cheat-invalid-title { margin: 0; color: var(--error); font-size: 14px; font-weight: 600; }
-.cheat-invalid-reason { margin: 2px 0 10px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
-.cheat-repoint { display: flex; gap: 8px; }
-.cheat-repoint select { flex: 1; min-width: 0; min-height: 30px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
+.cheat-drag:hover, .cheat-remove:hover { color: var(--text); }
+/* The block's own heading is replaced by the card heading row above. */
+.cheat-card-body .zn-block section[data-zn-focus] { padding: 0; }
+.cheat-card-body .zn-block section[data-zn-focus] > :first-child { display: none; }
+.cheat-card-body .note-body h3 { font-size: 15px; }
+.cheat-card-body .note-body h4 { font-size: 14px; }
+.cheat-invalid { padding-top: 4px; }
+.cheat-invalid-title { margin: 0; color: var(--error); font-size: 14px; }
+.cheat-invalid-reason { margin: 2px 0 8px; color: var(--faint); font-size: 12px; overflow-wrap: anywhere; }
+.cheat-repoint { display: flex; align-items: baseline; gap: 12px; }
+.cheat-repoint select { flex: 1; min-width: 0; padding: 2px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-size: 13px; }
+.cheat-repoint select option, .cheat-repoint select optgroup { background: var(--surface-2); }
+.cheat-repoint button { padding: 2px 0; border: 0; background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+.cheat-repoint button:hover:not(:disabled) { color: var(--text); }
 .cheat-repoint button:disabled { opacity: .4; cursor: default; }
 
 /* Small modal dialog */
