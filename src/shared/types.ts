@@ -14,8 +14,6 @@ export type SubjectMeta = {
   title: string;
   summary?: string;
   order?: number;
-  /** Tags registered for this subject. */
-  tags: string[];
 };
 
 export type LinkRef = {

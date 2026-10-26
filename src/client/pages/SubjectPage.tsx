@@ -27,7 +27,6 @@ export function SubjectPage({ name }: { name: string }) {
         <p className="eyebrow">科目</p>
         <h1>{subject.meta.title}</h1>
         {subject.meta.summary && <p className="lead">{subject.meta.summary}</p>}
-        <Tags tags={subject.meta.tags} />
       </div>
 
       {page && page.html.trim() && (
@@ -48,6 +47,7 @@ export function SubjectPage({ name }: { name: string }) {
                 {i + 1}. {note.meta.title}
               </Link>
               {note.meta.summary && <p className="chapter-summary">{note.meta.summary}</p>}
+              <Tags tags={note.meta.tags} />
               <TocTree items={note.toc} pageUrl={note.url} />
             </li>
           ))}
