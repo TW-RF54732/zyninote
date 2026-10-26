@@ -1,18 +1,16 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { CheatSheetView, PageView, SubjectResponse, Tree, UpdateEvent } from "../shared/types.ts";
+import type { CheatCardView, CheatSheetView, PageView, SubjectResponse, Tree, UpdateEvent } from "../shared/types.ts";
 
 // Every content update bumps the version, so every mounted query refetches.
-// Cheat sheet writes bump it too: the watcher would, but only after a debounce and a sync.
 let version = 0;
 const listeners = new Set<() => void>();
 
-function bumpVersion() {
-  version++;
-  listeners.forEach((listener) => listener());
-}
-
 if (import.meta.hot) {
-  import.meta.hot.on("zyninote:update", (_event: UpdateEvent) => bumpVersion());
+  import.meta.hot.on("zyninote:update", (_event: UpdateEvent) => {
+    version++;
+    listeners.forEach((listener) => listener());
+    for (const [subject, count] of watchedSheets) if (count > 0) void loadCheats(subject);
+  });
 }
 
 function subscribe(listener: () => void) {
@@ -71,19 +69,80 @@ export const useSubject = (name: string) => useApi<SubjectResponse>(`/api/subjec
 export const usePage = (subject: string, slug: string) => useApi<PageView>(`/api/page/${encodeURIComponent(subject)}/${encodeURIComponent(slug)}`);
 /** Any page by key: "subject/slug" for a note, "subject/" for a subject's _subject.md. */
 export const usePageByKey = (key: string) => useApi<PageView>(`/api/page/${key.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`);
-export const useCheats = (subject: string) => useApi<CheatSheetView>(`/api/cheats/${encodeURIComponent(subject)}`);
+// Cheat sheets have their own store so a write updates the buttons and the panel at once (optimistically), without
+// refetching every page. Every load and write takes a sequence number; a response older than what is shown is dropped.
+type SheetState = { sheet: CheatSheetView | null; error: string | null };
+const sheets = new Map<string, SheetState>();
+const sheetSeq = new Map<string, { issued: number; shown: number }>();
+const sheetListeners = new Set<() => void>();
+const watchedSheets = new Map<string, number>();
 
-/** Cheat sheet writes. Each resolves with the new sheet and refreshes every query; failures reject with the server's message. */
-async function writeCheats(subject: string, path: string, method: string, body?: unknown): Promise<CheatSheetView> {
-  const sheet = await fetchJson<CheatSheetView>(`/api/cheats/${encodeURIComponent(subject)}${path}`, {
-    method,
-    ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
-  });
-  bumpVersion();
-  return sheet;
+function nextSeq(subject: string): number {
+  const seq = sheetSeq.get(subject) ?? { issued: 0, shown: 0 };
+  sheetSeq.set(subject, seq);
+  return ++seq.issued;
 }
 
-export const addCheat = (subject: string, ref: string) => writeCheats(subject, "/cards", "POST", { ref });
-export const removeCheat = (subject: string, id: string) => writeCheats(subject, `/cards/${encodeURIComponent(id)}`, "DELETE");
+function showSheet(subject: string, seq: number, state: SheetState) {
+  const current = sheetSeq.get(subject)!;
+  if (seq < current.shown) return;
+  current.shown = seq;
+  sheets.set(subject, state);
+  sheetListeners.forEach((listener) => listener());
+}
+
+const cheatsUrl = (subject: string) => `/api/cheats/${encodeURIComponent(subject)}`;
+
+async function loadCheats(subject: string) {
+  const seq = nextSeq(subject);
+  try {
+    showSheet(subject, seq, { sheet: await fetchJson<CheatSheetView>(cheatsUrl(subject)), error: null });
+  } catch (error) {
+    showSheet(subject, seq, { sheet: null, error: (error as Error).message });
+  }
+}
+
+function subscribeSheets(listener: () => void) {
+  sheetListeners.add(listener);
+  return () => sheetListeners.delete(listener);
+}
+
+export function useCheats(subject: string): { data: CheatSheetView | null; error: string | null } {
+  useEffect(() => {
+    watchedSheets.set(subject, (watchedSheets.get(subject) ?? 0) + 1);
+    void loadCheats(subject);
+    return () => void watchedSheets.set(subject, watchedSheets.get(subject)! - 1);
+  }, [subject]);
+  const state = useSyncExternalStore(subscribeSheets, () => sheets.get(subject));
+  return { data: state?.sheet ?? null, error: state?.error ?? null };
+}
+
+/**
+ * A cheat sheet write. `optimistic` shows the expected result at once; the server's answer then replaces it,
+ * and a failure reloads the real sheet and rejects with the server's message.
+ */
+async function writeCheats(subject: string, path: string, method: string, body?: unknown, optimistic?: (cards: CheatCardView[]) => CheatCardView[]): Promise<CheatSheetView> {
+  const seq = nextSeq(subject);
+  const current = sheets.get(subject)?.sheet;
+  if (optimistic && current) showSheet(subject, seq, { sheet: { ...current, cards: optimistic(current.cards) }, error: null });
+  try {
+    const sheet = await fetchJson<CheatSheetView>(`${cheatsUrl(subject)}${path}`, {
+      method,
+      ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    });
+    showSheet(subject, seq, { sheet, error: null });
+    return sheet;
+  } catch (error) {
+    void loadCheats(subject);
+    throw error;
+  }
+}
+
+/** `preview` is the card shown until the server answers with the real one. */
+export const addCheat = (subject: string, ref: string, preview?: CheatCardView) =>
+  writeCheats(subject, "/cards", "POST", { ref }, preview && ((cards) => [...cards, preview]));
+export const removeCheat = (subject: string, id: string) =>
+  writeCheats(subject, `/cards/${encodeURIComponent(id)}`, "DELETE", undefined, (cards) => cards.filter((card) => card.id !== id));
 export const repointCheat = (subject: string, id: string, ref: string) => writeCheats(subject, `/cards/${encodeURIComponent(id)}`, "PATCH", { ref });
-export const reorderCheats = (subject: string, ids: string[]) => writeCheats(subject, "/order", "PUT", { ids });
+export const reorderCheats = (subject: string, ids: string[]) =>
+  writeCheats(subject, "/order", "PUT", { ids }, (cards) => ids.flatMap((id) => cards.find((card) => card.id === id) ?? []));

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { cardRefFor, filterCards, moveCard, type CheatFilter, type CheatMode } from "../../shared/cheats.ts";
 import { pageKeyFromPathname } from "../../shared/links.ts";
@@ -154,32 +154,20 @@ type PanelProps = {
   onPin: (pinned: boolean) => void;
 };
 
-function Panel({ subject, currentPage, cards: stored, fileError, pinned, onPin }: PanelProps) {
+function Panel({ subject, currentPage, cards, fileError, pinned, onPin }: PanelProps) {
   const { data: tree } = useTree();
   const notes = tree?.subjects.find((s) => s.name === subject)?.notes ?? [];
   const [filter, setFilter] = useStored<StoredFilter>(`zyninote:cheats:${subject}`, DEFAULT_FILTER);
   const [notice, setNotice] = useState<string | null>(null);
   const fail = (error: Error) => setNotice(error.message);
 
-  // Reordering shows the new order at once; the next sheet from the server replaces it.
-  const [order, setOrder] = useState<string[] | null>(null);
-  useEffect(() => setOrder(null), [stored]);
-  const cards = useMemo(() => {
-    if (!order) return stored;
-    const byId = new Map(stored.map((card) => [card.id, card]));
-    return order.flatMap((id) => byId.get(id) ?? []);
-  }, [order, stored]);
   const visible = filterCards(cards, { ...filter, currentPage });
 
   const reorder = (id: string, drop: Drop) => {
     const ids = cards.map((card) => card.id);
     const next = moveCard(ids, id, drop);
     if (next.join("\n") === ids.join("\n")) return;
-    setOrder(next);
-    reorderCheats(subject, next).catch((error: Error) => {
-      setOrder(null);
-      fail(error);
-    });
+    reorderCheats(subject, next).catch(fail);
   };
 
   const chapters = [

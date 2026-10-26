@@ -47,7 +47,7 @@ Each format renders to HTML whose headings are wrapped in `<section class="zn-se
 - **Data**: `content/<subject>/_cheats.json` holds only `{ id, ref, added }` cards in display order. A card's `ref` is a relative link from that file, resolved with `resolveCardRef` (`src/shared/cheats.ts`, a wrapper over `resolveLink`), and must carry `#id`.
 - **Server** (`src/pipeline/cheats.ts`): `CheatStore` reads the file fresh on every request and serializes writes per subject (temp file + rename, one card per line, unknown fields kept, malformed files never overwritten). `describeCards` resolves cards against the index into `CheatCardView`s plus diagnostics; the indexer reruns it on every `sync()`. The API lives under `/api/cheats/:subject`.
 - **Client**: `CheatPanel` (mounted in `App`) is the edge dock; cards render through `BlockView`, so they follow source edits. `useCheatAdd` (used by `NoteBody` only) injects the heading `+` buttons into the DOM and asks before adding an overlapping block (`relatedSections`). Filtering (`filterCards`) and drag reordering (`moveCard`) are pure functions in `src/shared/cheats.ts`.
-- Writes bump the client's content version immediately; the watcher's `zyninote:update` follows.
+- **Client store**: cheat sheets have their own store in `data.ts` (not `useApi`). Writes apply an optimistic result at once, then the server response; sequence numbers drop stale responses. `zyninote:update` reloads watched sheets.
 
 ### Indexing, cache and live update
 

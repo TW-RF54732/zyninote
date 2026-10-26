@@ -13,13 +13,13 @@ export function initCheatButtons(root: HTMLElement, added: Set<string>) {
       button = document.createElement("button");
       button.type = "button";
       button.className = "zn-cheat-add";
-      button.textContent = "+";
       heading.append(button);
     }
     button.dataset.id = id;
     const isAdded = added.has(id);
     button.toggleAttribute("data-added", isAdded);
-    button.title = isAdded ? "已在 cheat sheet（再按一次會重複加入）" : "加入 cheat sheet";
+    button.textContent = isAdded ? "✓" : "+";
+    button.title = isAdded ? "從 cheat sheet 移除" : "加入 cheat sheet";
     button.setAttribute("aria-label", `${button.title}：${heading.parentElement!.dataset.title ?? id}`);
   }
 }

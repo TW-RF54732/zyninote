@@ -62,7 +62,7 @@ TSX 筆記用 `export const meta = { title, tags, order, summary }` 提供 front
 
 ## Cheat sheet
 
-- 閱讀時，標題旁的 `+` 把該區塊（含子標題）加入本科目的 cheat sheet，寫入 `content/<subject>/_cheats.json`。同一區塊可以重複加入；與既有卡片有包含關係時會先詢問。
+- 閱讀時，標題旁的 `+`（hover 標題時出現）把該區塊（含子標題）加入本科目的 cheat sheet，寫入 `content/<subject>/_cheats.json`。已加入的標題常駐顯示小勾勾 `✓`，再按一次從 cheat sheet 移除；與既有卡片有包含關係時會先詢問。
 - 畫面右下的浮空圓角卡片：收起時整張卡片滑到螢幕外，只露出左緣的 `‹`；滑鼠移入立即滑出，離開卡片 20px 外才收回；點一下固定開啟，再點一次取消。觸控裝置只用點擊。拖動展開卡片的左緣可調整寬度（雙擊恢復預設），寬度會記住。
 - 模式：本科目（sub）、本頁（local）、篩選（advance：勾選章節或 tag，tag 可切換聯集／交集）。篩選後仍維持 cheat sheet 原本的順序。
 - 拖動卡片左上的 `⠿` 排序（滑鼠與觸控皆可），或在把手上按 Alt+↑／↓。
@@ -98,5 +98,6 @@ TSX 筆記用 `export const meta = { title, tags, order, summary }` 提供 front
 - **面板狀態**：模式與篩選（每個 subject 分開）、是否固定、展開寬度，記在瀏覽器的 localStorage；這只是便利功能，不屬於筆記資料。
 - **cheat sheet 只是 overlay**：不論是否固定，都不會改變筆記版面。第一次展開前不載入卡片內容。
 - **卡片內容**最高 55vh，超過時在卡片內捲動，避免單張卡片佔滿面板、拖動困難。
+- **加入按鈕是開關**（偏離 PLAN.md「同一區塊可重複加入」）：已加入的區塊按 `✓` 會移除它的所有卡片，所以從網頁上無法重複加入同一區塊。`_cheats.json` 仍允許同一 ref 出現多次（各有自己的 id），手寫的重複卡片照常顯示。
 - **加入按鈕**只出現在正在閱讀的頁面（含 subject 首頁），預覽卡與 cheat sheet 卡片內不會出現。按鈕是前端加到 DOM 上的，不影響索引的 HTML。
 - **未註冊 tag** 的檢查在 Phase 4 加入同一個問題列表。

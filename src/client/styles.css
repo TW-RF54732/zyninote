@@ -218,31 +218,28 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
 
 /* Cheat sheet: "add" buttons on headings of the page being read */
 .zn-cheat-add {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin-left: .5em;
-  vertical-align: middle;
-  padding: 0;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  /* Sits on the heading's baseline, right after its text, scaled with the heading. */
+  display: inline-block;
+  vertical-align: baseline;
+  margin-left: .25em;
+  padding: 0 .15em;
+  border: 0;
   background: transparent;
-  color: var(--muted);
-  font-size: 15px;
+  color: var(--faint);
+  font-size: .7em;
+  font-weight: 400;
   line-height: 1;
   letter-spacing: 0;
   cursor: pointer;
-  opacity: .45;
-  transition: opacity 150ms, background 150ms, color 150ms;
+  opacity: .6;
+  transition: opacity 150ms, color 150ms;
 }
-.zn-cheat-add:hover { opacity: 1; color: var(--text); background: #292929; }
-.zn-cheat-add[data-added] { color: var(--text); border-color: #6a6a6a; background: var(--surface); }
+.zn-cheat-add:hover { opacity: 1; color: var(--text); }
+/* Already a card: a small check, always shown. */
+.zn-cheat-add[data-added] { opacity: 1; color: var(--muted); font-size: .55em; }
 @media (hover: hover) {
-  .zn-cheat-add { opacity: 0; }
+  .zn-cheat-add:not([data-added]) { opacity: 0; }
   .zn-section > :first-child:hover > .zn-cheat-add, .zn-cheat-add:focus-visible { opacity: 1; }
-  .zn-cheat-add[data-added] { opacity: .6; }
 }
 
 /* Cheat sheet: the dock at the right edge */
