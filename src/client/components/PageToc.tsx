@@ -20,7 +20,7 @@ function useActiveSection(contentKey: string): string | null {
     const update = () => {
       frame = 0;
       let current: string | null = null;
-      for (const heading of document.querySelectorAll<HTMLElement>(".note-body section.zn-section > :first-child")) {
+      for (const heading of document.querySelectorAll<HTMLElement>("#content .note-body section.zn-section > :first-child")) {
         if (heading.offsetParent === null) continue;
         if (heading.getBoundingClientRect().top > 120) break;
         current = heading.id;

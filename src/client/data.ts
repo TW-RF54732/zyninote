@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { Page, SubjectResponse, Tree, UpdateEvent } from "../shared/types.ts";
+import type { PageView, SubjectResponse, Tree, UpdateEvent } from "../shared/types.ts";
 
 // Every content update bumps the version, so every mounted query refetches.
 let version = 0;
@@ -29,7 +29,7 @@ function useApi<T>(url: string): Query<T> {
 
   useEffect(() => {
     let alive = true;
-    fetch(url)
+    fetch(url, { cache: "no-store" })
       .then(async (res) => {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? res.statusText);
@@ -51,4 +51,6 @@ function useApi<T>(url: string): Query<T> {
 
 export const useTree = () => useApi<Tree>("/api/tree");
 export const useSubject = (name: string) => useApi<SubjectResponse>(`/api/subject/${encodeURIComponent(name)}`);
-export const usePage = (subject: string, slug: string) => useApi<Page>(`/api/page/${encodeURIComponent(subject)}/${encodeURIComponent(slug)}`);
+export const usePage = (subject: string, slug: string) => useApi<PageView>(`/api/page/${encodeURIComponent(subject)}/${encodeURIComponent(slug)}`);
+/** Any page by key: "subject/slug" for a note, "subject/" for a subject's _subject.md. */
+export const usePageByKey = (key: string) => useApi<PageView>(`/api/page/${key.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`);

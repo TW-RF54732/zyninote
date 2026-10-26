@@ -2,9 +2,12 @@
 title: 導數
 tags: [公式]
 summary: 導數定義與基本微分規則
+links: visible
 ---
 
 ## 定義
+
+導數是差商的 [[ch1-limits.md#直觀意義|極限]]，嚴格的意義見 [[ch1-limits.md#epsilon-delta|ε-δ 定義]]：
 
 $$
 f'(x) = \lim_{h \to 0} \frac{f(x + h) - f(x)}{h}

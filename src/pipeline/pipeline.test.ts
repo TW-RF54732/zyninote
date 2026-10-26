@@ -1,10 +1,15 @@
 import { compile } from "@mdx-js/mdx";
 import { describe, expect, it } from "vitest";
 import { parseAttrs, preprocessMdx, splitTrailingAttrs } from "./attrs.ts";
-import { rehypePlugins, remarkPlugins } from "./plugins.ts";
-import { renderMarkdown } from "./render-md.ts";
+import { notePlugins } from "./plugins.ts";
+import { createMarkdownRenderer } from "./render-md.ts";
 import { compareByOrder } from "./scan.ts";
 import { segment } from "./segment.ts";
+
+const CONTENT = "/notes/content";
+const render = createMarkdownRenderer(CONTENT);
+/** Renders Markdown as if it were the note at content-relative `path`. */
+const renderMarkdown = (body: string, path = "s/x.md") => render(body, `${CONTENT}/${path}`);
 
 describe("attrs", () => {
   it("parses id and classes", () => {
@@ -66,7 +71,7 @@ describe("markdown rendering + segmenting", () => {
 describe("mdx", () => {
   it("gives MDX headings the same attributes as Markdown", async () => {
     const src = preprocessMdx("## TCP Flags {#tcp-flags .fold}\n\n內容\n", {});
-    const code = String(await compile(src, { remarkPlugins, rehypePlugins }));
+    const code = String(await compile(src, notePlugins(CONTENT)));
     expect(code).toContain('"data-id": "tcp-flags"');
     expect(code).toContain('"data-fold": "true"');
     expect(code).not.toContain("zn #");

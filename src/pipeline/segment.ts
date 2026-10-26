@@ -2,26 +2,36 @@
 import type { Element, ElementContent, Root } from "hast";
 import { fromHtml } from "hast-util-from-html";
 import { toHtml } from "hast-util-to-html";
-import type { Diagnostic, Section, TocItem } from "../shared/types.ts";
+import { resolveLink } from "../shared/links.ts";
+import type { Diagnostic, PageLink, Section, TocItem } from "../shared/types.ts";
 
 export type Segmented = {
   sections: Section[];
   toc: TocItem[];
+  links: PageLink[];
   diagnostics: Diagnostic[];
 };
 
+/** `path` is the page's content-relative path; links are resolved against it. */
 export function segment(html: string, path: string): Segmented {
   const root = fromHtml(html, { fragment: true });
   const sections: Section[] = [];
+  const links: PageLink[] = [];
   const diagnostics: Diagnostic[] = [];
   const seen = new Set<string>();
 
-  const walk = (nodes: (Root | Element)["children"]): TocItem[] => {
+  const walk = (nodes: (Root | Element)["children"], current: Section | null): TocItem[] => {
     const items: TocItem[] = [];
     for (const node of nodes) {
       if (node.type !== "element") continue;
       if (!isSection(node)) {
-        items.push(...walk(node.children));
+        if (node.tagName === "a" && typeof node.properties.dataZnRef === "string") {
+          const ref = node.properties.dataZnRef;
+          const link = { ref, style: node.properties.dataZnLink === "quiet" ? "quiet" : "visible", target: resolveLink(path, ref) } as const;
+          links.push({ ...link, section: current?.id ?? null });
+          current?.links.push(link);
+        }
+        items.push(...walk(node.children, current));
         continue;
       }
       const props = node.properties;
@@ -51,15 +61,15 @@ export function segment(html: string, path: string): Segmented {
         children: [],
       };
       sections.push(section);
-      item.children = walk(node.children);
+      item.children = walk(node.children, section);
       section.children = item.children.map((c) => c.id);
       items.push(item);
     }
     return items;
   };
 
-  const toc = walk(root.children);
-  return { sections, toc, diagnostics };
+  const toc = walk(root.children, null);
+  return { sections, toc, links, diagnostics };
 }
 
 function isSection(node: Element): boolean {

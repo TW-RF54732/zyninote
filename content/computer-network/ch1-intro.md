@@ -7,7 +7,7 @@ summary: 分層模型、封裝與傳輸延遲
 
 ## OSI 七層 {#osi-七層}
 
-OSI 模型把網路通訊拆成七層，每層只依賴下一層提供的服務。
+OSI 模型把網路通訊拆成七層，每層只依賴下一層提供的服務。傳輸層的連線建立見 [[ch2-tcp.mdx#three-way-handshake|三次握手]]，各種控制位元整理在 [[ch2-tcp.mdx#tcp-flags|TCP 旗標]]；網路層怎麼選路見[路由演算法](ch3-routing.tsx#dijkstra)。
 
 | 層 | 名稱 | 例子 |
 |---|---|---|

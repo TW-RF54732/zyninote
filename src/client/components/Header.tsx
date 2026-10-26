@@ -34,9 +34,9 @@ export function Header() {
         )}
       </nav>
       {problems > 0 && (
-        <span className="header-problems" title={tree!.diagnostics.map((d) => `${d.path}：${d.message}`).join("\n")}>
+        <Link href="/_problems" className="header-problems">
           {problems} 個問題
-        </span>
+        </Link>
       )}
     </header>
   );

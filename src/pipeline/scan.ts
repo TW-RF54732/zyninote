@@ -1,8 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { NOTE_EXT } from "../shared/links.ts";
 import type { Diagnostic, Format } from "../shared/types.ts";
-
-export const NOTE_EXT = /\.(md|mdx|tsx)$/;
 
 export type NoteFile = {
   /** Path relative to content/, always with forward slashes. */

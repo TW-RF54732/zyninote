@@ -1,4 +1,4 @@
-import { Section } from "zyninote";
+import { Link, Section } from "zyninote";
 
 export const meta = {
   title: "路由",
@@ -10,7 +10,10 @@ export const meta = {
 export default function Routing() {
   return (
     <>
-      <p>路由演算法決定封包從來源到目的地要走哪條路徑。</p>
+      <p>
+        路由演算法決定封包從來源到目的地要走哪條路徑，屬於 <Link to="ch1-intro.md#osi-七層" quiet>網路層</Link> 的工作；端到端的可靠傳輸則交給{" "}
+        <Link to="ch2-tcp.mdx">TCP</Link>。
+      </p>
 
       <Section id="link-state" title="鏈結狀態">
         <p>每個路由器知道整個網路拓撲，用 Dijkstra 演算法算出最短路徑。</p>

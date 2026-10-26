@@ -1,21 +1,21 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import type { Page } from "../../shared/types.ts";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { NoteContext } from "zyninote";
+import type { Page, PageView } from "../../shared/types.ts";
 import { currentHashId, foldState, handleFoldClick, initFold, reveal, type FoldState } from "../behavior/fold.ts";
+import { markBroken } from "../behavior/links.ts";
 import { renderMermaid } from "../behavior/mermaid.ts";
 
-type Loaded = { hash: string; Component: ComponentType };
+type Loaded = { path: string; hash: string; Component: ComponentType };
 
 /**
- * Renders a page body. Markdown uses the indexed HTML; MDX/TSX modules are imported through Vite
+ * A page's body. Markdown uses the indexed HTML; MDX/TSX modules are imported through Vite
  * so interactive components run in the browser. Re-imports happen only when the page hash changes.
+ * `renderedKey` changes whenever the body's DOM is replaced.
  */
-export function NoteBody({ page }: { page: Page }) {
-  const ref = useRef<HTMLDivElement>(null);
+export function usePageBody(page: Page): { body: ReactNode; error: string | null; renderedKey: string } {
   const isModule = page.format !== "md";
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  // Fold state survives live updates of the same page, but not navigation.
-  const foldMemory = useRef<{ path: string; state: FoldState } | null>(null);
 
   useEffect(() => {
     if (!isModule) return;
@@ -24,7 +24,7 @@ export function NoteBody({ page }: { page: Page }) {
     import(/* @vite-ignore */ `/content/${page.path}?t=${Date.now()}`)
       .then((mod: { default: ComponentType }) => {
         if (alive) {
-          setLoaded({ hash: page.hash, Component: mod.default });
+          setLoaded({ path: page.path, hash: page.hash, Component: mod.default });
           setLoadError(null);
         }
       })
@@ -34,18 +34,29 @@ export function NoteBody({ page }: { page: Page }) {
     };
   }, [isModule, page.path, page.hash]);
 
+  const current = loaded?.path === page.path ? loaded : null;
   const body = useMemo(() => {
-    if (!isModule) return <div className="note-body" dangerouslySetInnerHTML={{ __html: page.html }} />;
-    if (!loaded) return <div className="note-body" dangerouslySetInnerHTML={{ __html: page.html }} />;
+    if (!isModule || !current) return <div className="note-body" dangerouslySetInnerHTML={{ __html: page.html }} />;
     return (
-      <div className="note-body" key={loaded.hash}>
-        <loaded.Component />
+      <div className="note-body" key={current.hash}>
+        <NoteContext.Provider value={page.path}>
+          <current.Component />
+        </NoteContext.Provider>
       </div>
     );
-  }, [isModule, loaded, page.html]);
+  }, [isModule, current, page.html, page.path]);
+
+  return { body, error: loadError, renderedKey: isModule ? (current?.hash ?? "ssr") : page.hash };
+}
+
+/** The body of the page being read: folding, hash navigation, diagrams and broken-link marks. */
+export function NoteBody({ page }: { page: PageView }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { body, error, renderedKey } = usePageBody(page);
+  // Fold state survives live updates of the same page, but not navigation.
+  const foldMemory = useRef<{ path: string; state: FoldState } | null>(null);
 
   // After every content swap: restore or initialise folds, render diagrams, honour the URL hash.
-  const renderedKey = isModule ? (loaded?.hash ?? "ssr") : page.hash;
   useLayoutEffect(() => {
     const root = ref.current;
     if (!root) return;
@@ -56,6 +67,12 @@ export function NoteBody({ page }: { page: Page }) {
     void renderMermaid(root);
     foldMemory.current = { path: page.path, state: foldState(root) };
   }, [page.path, renderedKey]);
+
+  // Link targets can break or heal without this page changing.
+  const broken = page.broken.join("\n");
+  useLayoutEffect(() => {
+    if (ref.current) markBroken(ref.current, page.broken);
+  }, [renderedKey, broken]);
 
   useEffect(() => {
     const onHash = () => {
@@ -76,8 +93,8 @@ export function NoteBody({ page }: { page: Page }) {
   };
 
   return (
-    <div ref={ref} onClick={onClick}>
-      {loadError && <pre className="zn-error">{loadError}</pre>}
+    <div ref={ref} onClick={onClick} data-links={page.meta.links}>
+      {error && <pre className="zn-error">{error}</pre>}
       {body}
     </div>
   );

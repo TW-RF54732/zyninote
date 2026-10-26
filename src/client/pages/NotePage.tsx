@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "wouter";
+import { Backlinks } from "../components/Backlinks.tsx";
 import { NoteBody } from "../components/NoteBody.tsx";
 import { PageToc } from "../components/PageToc.tsx";
 import { Pager } from "../components/Pager.tsx";
@@ -51,6 +52,7 @@ export function NotePage({ subject, slug }: { subject: string; slug: string }) {
           <Tags tags={page.meta.tags} />
         </header>
         <NoteBody page={page} />
+        <Backlinks backlinks={page.backlinks} subjectTitle={subjectSummary?.meta.title} />
         {subjectSummary && <Pager subject={subjectSummary} slug={slug} />}
       </article>
     </div>

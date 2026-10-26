@@ -1,5 +1,5 @@
 import { relative } from "node:path";
-import { createElement, type ComponentType } from "react";
+import { createElement, type ComponentType, type Context } from "react";
 import { renderToString } from "react-dom/server";
 import type { EnvironmentModuleNode, ViteDevServer } from "vite";
 
@@ -10,14 +10,20 @@ export type RenderedModule = {
   deps: string[];
 };
 
-/** Renders a .mdx or .tsx note through Vite's SSR loader, so it uses the exact plugin chain the browser uses. */
-export async function renderModule(vite: ViteDevServer, root: string, file: string): Promise<RenderedModule> {
+/**
+ * Renders a .mdx or .tsx note through Vite's SSR loader, so it uses the exact plugin chain the browser uses.
+ * `path` is the note's content-relative path, provided to `<Link>` through NoteContext like the client does.
+ */
+export async function renderModule(vite: ViteDevServer, root: string, file: string, path: string): Promise<RenderedModule> {
   const url = `/${relative(root, file).split("\\").join("/")}`;
   const mod = await vite.ssrLoadModule(url);
   const Component = mod.default as ComponentType | undefined;
   if (typeof Component !== "function") throw new Error("缺少 default export 的元件");
+  // Load the runtime through Vite as well: the note imports it from the SSR module graph, so the context must come from there.
+  const runtime = await vite.ssrLoadModule("/src/runtime/index.ts");
+  const NoteContext = runtime.NoteContext as Context<string | null>;
   return {
-    html: renderToString(createElement(Component)),
+    html: renderToString(createElement(NoteContext.Provider, { value: path }, createElement(Component))),
     meta: mod.meta as Record<string, unknown> | undefined,
     deps: collectDeps(vite, root, file),
   };

@@ -4,7 +4,7 @@ import { basename } from "node:path";
 import type { PluginOption } from "vite";
 import { preprocessMdx } from "../pipeline/attrs.ts";
 import { normalizePageMeta, readFrontmatter } from "../pipeline/meta.ts";
-import { rehypePlugins, remarkPlugins } from "../pipeline/plugins.ts";
+import { notePlugins } from "../pipeline/plugins.ts";
 
 /** Vite plugins shared by server-side rendering (indexing) and the browser, so both compile notes identically. */
 export function zyninotePlugins(contentDir: string): PluginOption[] {
@@ -19,7 +19,7 @@ export function zyninotePlugins(contentDir: string): PluginOption[] {
         return preprocessMdx(code, normalizePageMeta(data, basename(file, ".mdx")));
       },
     },
-    { enforce: "pre", ...mdx({ remarkPlugins, rehypePlugins }) },
+    { enforce: "pre", ...mdx(notePlugins(contentDir)) },
     react(),
     {
       // Content changes are handled by the indexer, which tells the client what to refetch.

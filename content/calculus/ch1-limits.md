@@ -30,6 +30,8 @@ $$
 
 ## 重要極限
 
+導數本身就是一個極限，見[導數的定義](ch2-derivatives.md#定義)。
+
 $$
 \lim_{x \to 0} \frac{\sin x}{x} = 1, \qquad \lim_{n \to \infty} \left(1 + \frac{1}{n}\right)^n = e
 $$

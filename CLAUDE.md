@@ -7,7 +7,8 @@ Zyninote is a study-notes system: users write `.md` / `.mdx` / `.tsx` under `con
 ## Commands
 
 ```sh
-npm run dev                                   # tsx src/server/main.ts → http://localhost:5180 (PORT env overrides)
+npm run dev                                   # tsx watch src/server/main.ts (restarts on server code changes) → http://localhost:5180 (PORT env overrides)
+npm run check                                 # index once, print diagnostics, exit 1 on errors (src/server/check.ts)
 npm test                                      # vitest run (src/**/*.test.ts)
 npx vitest run -t "suffixes duplicate ids"    # single test by name
 npm run typecheck                             # tsc --noEmit (TypeScript 7)
@@ -17,7 +18,7 @@ There is no build step yet; the app runs only as a local dev server. Only npm is
 
 ## Architecture
 
-The app is a single Node process: Vite 8 in middleware mode plus a Hono API (`src/server/main.ts`). Requests to `/api/*` go to Hono. Everything else goes to Vite's middlewares, then an SPA fallback serves `src/client/index.html`. Vite is configured inline (`configFile: false`), and its plugins live in `src/server/vite-plugins.ts`.
+The app is a single Node process: Vite 8 in middleware mode plus a Hono API (`src/server/main.ts`). Requests to `/api/*` go to Hono. Everything else goes to Vite's middlewares, then an SPA fallback serves `src/client/index.html`. Vite is configured inline (`configFile: false`) in `src/server/setup.ts`, shared with `check.ts`, and its plugins live in `src/server/vite-plugins.ts`.
 
 ### The unified pipeline (core invariant)
 
@@ -25,13 +26,21 @@ Each format renders to HTML whose headings are wrapped in `<section class="zn-se
 
 - **`.md`**: unified pipeline in `render-md.ts`.
 - **`.mdx` and `.tsx`**: rendered through Vite's `ssrLoadModule` + `renderToString` (`render-module.ts`). The browser imports the same modules through the same Vite plugin chain, so server-indexed output and client-rendered output match, including heading IDs. Keep that property when changing plugins.
-- **Shared plugin list**: `src/pipeline/plugins.ts` is the single list of remark/rehype plugins used by both md and MDX. `rehypeSectionize` must run before `rehypeKatex` so heading titles come from the TeX source.
+- **Shared plugin list**: `notePlugins(contentDir)` in `src/pipeline/plugins.ts` is the single list of remark/rehype plugins used by both md and MDX. `rehypeSectionize` must run before `rehypeKatex` so heading titles come from the TeX source.
 - **Heading attributes** `{#id .fold}`:
   - In `.md`, `remark-heading-attrs.ts` strips them from the heading text.
   - In MDX, `{}` is a JS expression, so the `zyninote:mdx-preprocess` Vite plugin (`preprocessMdx` in `attrs.ts`, fence-aware) first rewrites them to `{/*zn #id .fold*/}`. The same remark plugin then reads that marker. The preprocessor also turns frontmatter into `export const meta`.
 - **Duplicate IDs**: `rehypeSectionize` suffixes duplicate IDs and marks the section `data-zn-dup`, which `segment.ts` turns into a diagnostic.
 - **TSX notes**: use `<Section id title fold>` from `src/runtime` (imported as `"zyninote"` via alias in both Vite and tsconfig). The heading level comes from React-context nesting, outermost = h2. Duplicate IDs in TSX are only warned about, never rewritten.
 - **Interactive components**: wrap output in `<Interactive description>`. That emits `data-zn-description`, which the segmenter uses as the block's text.
+
+### Links
+
+- **One resolver**: `resolveLink(from, ref)` in `src/shared/links.ts` is pure string logic, shared by the pipeline, the TSX `<Link>`, the segmenter, the checker and the client. It maps a relative ref to a page key (`subject/slug`, `subject/` or `""`), a file, or an error (`outside` / `absolute`). Page key and URL coincide: `pageUrl(key)`.
+- **One markup**: every internal link renders as `<a class="zn-link" data-zn-link="quiet|visible" data-zn-ref="<ref as written>" href>`. `remark-wikilinks.ts` turns `[[...]]` into link nodes marked quiet, `rehype-links.ts` rewrites every `<a>` (it needs `file.path`, so renderers pass the absolute file path), and `<Link>` emits the same markup. Error links have no href. `segment.ts` reads this markup into `Section.links` and `Page.links`.
+- **TSX path context**: `<Link>` gets the note's path from `NoteContext`. The server must take the context from `vite.ssrLoadModule("/src/runtime/index.ts")`, not a Node import, because notes use the SSR module instance. The client provides it in `usePageBody`.
+- **Render output never depends on other pages**: existence checks, `broken` refs and backlinks come from `checkLinks` (`link-check.ts`), which reruns over the whole index after every `sync()`. The API serves pages as `PageView` (page + url + backlinks + broken), and the client marks broken links in the DOM.
+- **Client**: `LinkLayer` handles all `a.zn-link` behavior at the document level: the `zn-mod` class while Ctrl/Cmd is held, the hover preview, the touch sheet and in-app navigation (`goTo`). `BlockView` is the shared block display (previews now, cheat sheet cards later). It renders the whole page body and hides everything except the target section (`focusSection`).
 
 ### Indexing, cache and live update
 
