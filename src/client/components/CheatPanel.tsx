@@ -7,8 +7,9 @@ import { goTo } from "../behavior/links.ts";
 import { removeCheat, reorderCheats, repointCheat, useCheats, usePageByKey, useTree } from "../data.ts";
 import { BlockView } from "./BlockView.tsx";
 
-const OPEN_DELAY = 200;
-const CLOSE_DELAY = 250;
+/** The card's width is the user's (resized by dragging its left edge) and survives reloads. */
+const MIN_WIDTH = 300;
+const DEFAULT_WIDTH = 420;
 
 type StoredFilter = Omit<CheatFilter, "currentPage">;
 const DEFAULT_FILTER: StoredFilter = { mode: "sub", chapters: [], tags: [], tagMode: "any" };
@@ -32,21 +33,22 @@ export function CheatPanel() {
 }
 
 /**
- * Collapsed to a `<` handle at the edge. Hovering the handle opens the panel after a short delay and leaving closes it;
- * clicking pins it open (touch screens only use clicks). While pinned on a wide screen, the page makes room for it.
+ * A floating card that slides in from the right edge. Collapsed, it sits almost entirely off screen with only its `‹`
+ * strip showing; hovering slides it in at once and leaving slides it out; clicking pins it in (touch screens only use
+ * clicks). Dragging the open card's left edge resizes it. It is purely an overlay and never changes the page layout.
  */
 function Dock({ subject, currentPage }: { subject: string; currentPage: string }) {
   const { data: sheet } = useCheats(subject);
   const [pinned, setPinned] = useStored("zyninote:cheats:pinned", false);
+  const [savedWidth, setSavedWidth] = useStored("zyninote:cheats:width", DEFAULT_WIDTH);
   const [hovering, setHovering] = useState(false);
-  const timer = useRef(0);
+  const [resize, setResize] = useState<{ startX: number; startWidth: number; width: number } | null>(null);
   const pointer = useRef("");
   const open = pinned || hovering;
-
-  useEffect(() => {
-    document.documentElement.toggleAttribute("data-cheats-pinned", pinned);
-    return () => document.documentElement.removeAttribute("data-cheats-pinned");
-  }, [pinned]);
+  const width = clampWidth(resize?.width ?? savedWidth);
+  // Cards load on first open, then stay mounted so the card can slide out with its content.
+  const [opened, setOpened] = useState(open);
+  if (open && !opened) setOpened(true);
 
   useEffect(() => {
     if (!hovering || pinned) return;
@@ -55,31 +57,53 @@ function Dock({ subject, currentPage }: { subject: string; currentPage: string }
     return () => window.removeEventListener("keydown", onKey);
   }, [hovering, pinned]);
 
-  useEffect(() => () => clearTimeout(timer.current), []);
-
   // A subject that does not exist (404) has no cheat sheet.
   if (!sheet) return null;
 
   const isMouse = (event: ReactPointerEvent) => event.pointerType === "mouse";
   const pin = (next: boolean) => {
-    clearTimeout(timer.current);
     // Unpinning with the mouse over the dock keeps the panel open until the pointer leaves.
     setHovering(!next && pointer.current === "mouse");
     setPinned(next);
   };
-  const later = (fn: () => void, delay: number) => {
-    clearTimeout(timer.current);
-    timer.current = window.setTimeout(fn, delay);
+
+  const onResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setResize({ startX: event.clientX, startWidth: width, width });
+  };
+  const onResizeMove = (event: ReactPointerEvent) => {
+    if (resize) setResize({ ...resize, width: resize.startWidth + resize.startX - event.clientX });
+  };
+  const onResizeEnd = () => {
+    if (resize) setSavedWidth(clampWidth(resize.width));
+    setResize(null);
   };
 
   return (
     <div
       className="cheat-dock"
       data-open={open || undefined}
-      onPointerEnter={(event) => isMouse(event) && clearTimeout(timer.current)}
-      onPointerLeave={(event) => isMouse(event) && later(() => setHovering(false), CLOSE_DELAY)}
+      data-resizing={resize ? "" : undefined}
+      style={{ width }}
+      onPointerEnter={(event) => isMouse(event) && setHovering(true)}
+      onPointerLeave={(event) => isMouse(event) && !resize && setHovering(false)}
       onPointerDownCapture={(event) => (pointer.current = event.pointerType)}
     >
+      {open && (
+        <div
+          className="cheat-resize"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="調整 cheat sheet 寬度"
+          onPointerDown={onResizeStart}
+          onPointerMove={onResizeMove}
+          onPointerUp={onResizeEnd}
+          onPointerCancel={onResizeEnd}
+          onDoubleClick={() => setSavedWidth(DEFAULT_WIDTH)}
+        />
+      )}
       <button
         type="button"
         className="cheat-handle"
@@ -87,14 +111,22 @@ function Dock({ subject, currentPage }: { subject: string; currentPage: string }
         aria-pressed={pinned}
         aria-label={pinned ? "取消固定 cheat sheet" : "固定開啟 cheat sheet"}
         title="Cheat sheet"
-        onPointerEnter={(event) => isMouse(event) && !open && later(() => setHovering(true), OPEN_DELAY)}
         onClick={() => pin(!pinned)}
       >
         {open ? "›" : "‹"}
       </button>
-      {open && <Panel subject={subject} currentPage={currentPage} cards={sheet.cards} fileError={sheet.error} pinned={pinned} onPin={pin} />}
+      {opened && (
+        <div className="cheat-dock-body" inert={!open}>
+          <Panel subject={subject} currentPage={currentPage} cards={sheet.cards} fileError={sheet.error} pinned={pinned} onPin={pin} />
+        </div>
+      )}
     </div>
   );
+}
+
+/** Keeps the open card between MIN_WIDTH and the viewport (minus a gutter). */
+function clampWidth(width: number): number {
+  return Math.round(Math.max(Math.min(MIN_WIDTH, window.innerWidth - 24), Math.min(width, window.innerWidth - 24)));
 }
 
 type PanelProps = {
