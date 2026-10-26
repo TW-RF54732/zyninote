@@ -133,3 +133,28 @@ export type UpdateEvent = {
   /** Content-relative paths of pages whose output changed. */
   changed: string[];
 };
+
+/** A cheat sheet card as served by the API: the stored card plus what its `ref` points at in the current index. */
+export type CheatCardView = {
+  id: string;
+  /** Relative to the subject's _cheats.json, e.g. "ch2-tcp.mdx#tcp-flags". */
+  ref: string;
+  added?: string;
+  /** Page key the ref resolves to, even when that page or heading is missing; null for invalid paths. */
+  page: string | null;
+  sectionId: string | null;
+  url: string | null;
+  pageTitle: string | null;
+  sectionTitle: string | null;
+  /** Tags of the source page, for the advance filter. */
+  tags: string[];
+  /** Why the card cannot be shown ("來源已失效"); null when it is valid. */
+  problem: string | null;
+};
+
+export type CheatSheetView = {
+  subject: string;
+  cards: CheatCardView[];
+  /** Set when _cheats.json cannot be parsed; writes are refused until it is fixed. */
+  error: string | null;
+};

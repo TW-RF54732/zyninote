@@ -55,7 +55,7 @@ export function ProblemsPage() {
 
 function urlOf(tree: Tree, path: string): string | null {
   for (const subject of tree.subjects) {
-    if (path === subject.name || path === `${subject.name}/_subject.md`) return subject.url;
+    if (path === subject.name || path === `${subject.name}/_subject.md` || path === `${subject.name}/_cheats.json`) return subject.url;
     const note = subject.notes.find((n) => n.path === path);
     if (note) return note.url;
   }

@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { addCard, CheatError, removeCard, reorderCards, repointCard, today, type StoredCard } from "../pipeline/cheats.ts";
 import type { Indexer } from "../pipeline/indexer.ts";
 
 export function createApi(indexer: Indexer) {
@@ -29,6 +30,31 @@ export function createApi(indexer: Indexer) {
   });
 
   app.get("/diagnostics", (c) => c.json(indexer.allDiagnostics()));
+
+  // Cheat sheets. Every write goes straight to content/<subject>/_cheats.json and answers with the new sheet;
+  // the file watcher then resyncs and notifies every open browser.
+  app.get("/cheats/:subject", (c) => {
+    const sheet = indexer.getCheats(c.req.param("subject"));
+    return sheet ? c.json(sheet) : c.json({ error: "找不到此科目" }, 404);
+  });
+
+  const writeCheats = async (c: Context, mutate: (subject: string, cards: StoredCard[], body: Record<string, unknown>) => void) => {
+    const subject = c.req.param("subject")!;
+    if (!indexer.hasSubject(subject)) return c.json({ error: "找不到此科目" }, 404);
+    const body: Record<string, unknown> = c.req.method === "DELETE" ? {} : await c.req.json().catch(() => ({}));
+    try {
+      await indexer.cheats.update(subject, (cards) => mutate(subject, cards, body));
+    } catch (error) {
+      if (error instanceof CheatError) return c.json({ error: error.message }, error.status);
+      throw error;
+    }
+    return c.json(indexer.getCheats(subject));
+  };
+
+  app.post("/cheats/:subject/cards", (c) => writeCheats(c, (subject, cards, body) => addCard(subject, cards, body.ref, today())));
+  app.delete("/cheats/:subject/cards/:id", (c) => writeCheats(c, (_subject, cards) => removeCard(cards, c.req.param("id")!)));
+  app.patch("/cheats/:subject/cards/:id", (c) => writeCheats(c, (subject, cards, body) => repointCard(subject, cards, c.req.param("id")!, body.ref)));
+  app.put("/cheats/:subject/order", (c) => writeCheats(c, (_subject, cards, body) => reorderCards(cards, body.ids)));
 
   return app;
 }

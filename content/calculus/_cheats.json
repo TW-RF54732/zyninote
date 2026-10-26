@@ -1,1 +1,5 @@
-{ "cards": [] }
+{
+  "cards": [
+    { "id": "c_2c4c", "ref": "ch2-derivatives.md#微分規則", "added": "2026-10-26" }
+  ]
+}

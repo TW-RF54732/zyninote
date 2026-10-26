@@ -1,4 +1,5 @@
 import { Route, Switch, useLocation } from "wouter";
+import { CheatPanel } from "./components/CheatPanel.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Header } from "./components/Header.tsx";
 import { LinkLayer } from "./components/LinkLayer.tsx";
@@ -34,6 +35,7 @@ export function App() {
         <span>Zyninote / 有結構的學習筆記</span>
       </footer>
       <LinkLayer />
+      <CheatPanel />
     </>
   );
 }

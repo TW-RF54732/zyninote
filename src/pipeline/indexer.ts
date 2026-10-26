@@ -3,8 +3,9 @@ import { readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { ViteDevServer } from "vite";
 import { pageKeyOf, pageUrl } from "../shared/links.ts";
-import type { Diagnostic, Format, NoteSummary, Page, PageView, SubjectResponse, SubjectSummary, Tree } from "../shared/types.ts";
+import type { CheatSheetView, Diagnostic, Format, NoteSummary, Page, PageView, SubjectResponse, SubjectSummary, Tree } from "../shared/types.ts";
 import { Cache, type CacheEntry } from "./cache.ts";
+import { CheatStore, describeCards } from "./cheats.ts";
 import { checkLinks, type LinkIndex } from "./link-check.ts";
 import { normalizePageMeta, normalizeSubjectMeta, readFrontmatter } from "./meta.ts";
 import { createMarkdownRenderer } from "./render-md.ts";
@@ -33,10 +34,15 @@ export class Indexer {
   private cache: Cache;
   private fileHashes = new Map<string, { mtimeMs: number; size: number; hash: string }>();
   private links: LinkIndex = { diagnostics: [], backlinks: new Map(), broken: new Map() };
+  private cheatDiagnostics: Diagnostic[] = [];
+  private byKey = new Map<string, Page>();
   private renderMarkdown: ReturnType<typeof createMarkdownRenderer>;
+
+  readonly cheats: CheatStore;
 
   constructor(private opts: { root: string; contentDir: string; cacheDir: string; vite: ViteDevServer }) {
     this.cache = new Cache(opts.cacheDir);
+    this.cheats = new CheatStore(opts.contentDir);
     this.entries = this.cache.loadEntries();
     this.renderMarkdown = createMarkdownRenderer(opts.contentDir);
   }
@@ -79,7 +85,8 @@ export class Indexer {
 
     if (changed.length) this.cache.saveEntries(this.entries);
 
-    const before = new Set(this.links.diagnostics.map(diagnosticKey));
+    const before = new Set([...this.links.diagnostics, ...this.cheatDiagnostics].map(diagnosticKey));
+    this.byKey = new Map([...this.pages.values()].map((page) => [pageKeyOf(page.path), page]));
     this.links = checkLinks({
       pages: [...this.pages.values()],
       virtualPages: ["", ...this.scan.subjects.filter((s) => !s.subjectFile).map((s) => `${s.name}/`)],
@@ -92,7 +99,9 @@ export class Indexer {
         }
       },
     });
-    diagnostics.push(...this.links.diagnostics.filter((d) => !before.has(diagnosticKey(d))));
+    // Cheat sheets live in content/ and are cheap to read, so they are rechecked on every sync rather than cached.
+    this.cheatDiagnostics = this.scan.subjects.flatMap((dir) => this.describeCheats(dir.name).diagnostics);
+    diagnostics.push(...[...this.links.diagnostics, ...this.cheatDiagnostics].filter((d) => !before.has(diagnosticKey(d))));
     return { changed, diagnostics, ms: performance.now() - start };
   }
 
@@ -123,7 +132,23 @@ export class Indexer {
   }
 
   allDiagnostics(): Diagnostic[] {
-    return [...this.scan.diagnostics, ...[...this.pages.values()].flatMap((p) => p.diagnostics), ...this.links.diagnostics];
+    return [...this.scan.diagnostics, ...[...this.pages.values()].flatMap((p) => p.diagnostics), ...this.links.diagnostics, ...this.cheatDiagnostics];
+  }
+
+  hasSubject(name: string): boolean {
+    return this.scan.subjects.some((s) => s.name === name);
+  }
+
+  /** A subject's cheat sheet, read fresh from disk and resolved against the current index. */
+  getCheats(subject: string): CheatSheetView | null {
+    if (!this.hasSubject(subject)) return null;
+    const { file, cards } = this.describeCheats(subject);
+    return { subject, cards, error: file.error };
+  }
+
+  private describeCheats(subject: string) {
+    const file = this.cheats.read(subject);
+    return { file, ...describeCards(subject, file, (key) => this.byKey.get(key)) };
   }
 
   private view(page: Page): PageView {

@@ -1,1 +1,6 @@
-{ "cards": [] }
+{
+  "cards": [
+    { "id": "c_7c1e", "ref": "ch1-intro.md#延遲", "added": "2026-10-26" },
+    { "id": "c_24ed", "ref": "ch1-intro.md#延遲", "added": "2026-10-26" }
+  ]
+}

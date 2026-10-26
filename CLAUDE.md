@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Zyninote is a study-notes system: users write `.md` / `.mdx` / `.tsx` under `content/`, and the system provides navigation, TOCs, styling and features. `PLAN.md` is the authoritative spec, written in Traditional Chinese with phased milestones. Phase 1 (skeleton and pipeline) is done; later phases cover links, cheat sheets, tags/search and agent docs. `README.md` records decisions that deviate from or extend PLAN.md. Keep it updated when making new ones.
+Zyninote is a study-notes system: users write `.md` / `.mdx` / `.tsx` under `content/`, and the system provides navigation, TOCs, styling and features. `PLAN.md` is the authoritative spec, written in Traditional Chinese with phased milestones. Phases 1–3 (pipeline, links, cheat sheet) are done; later phases cover tags/search and agent docs. `README.md` records decisions that deviate from or extend PLAN.md. Keep it updated when making new ones.
 
 ## Commands
 
@@ -40,7 +40,14 @@ Each format renders to HTML whose headings are wrapped in `<section class="zn-se
 - **One markup**: every internal link renders as `<a class="zn-link" data-zn-link="quiet|visible" data-zn-ref="<ref as written>" href>`. `remark-wikilinks.ts` turns `[[...]]` into link nodes marked quiet, `rehype-links.ts` rewrites every `<a>` (it needs `file.path`, so renderers pass the absolute file path), and `<Link>` emits the same markup. Error links have no href. `segment.ts` reads this markup into `Section.links` and `Page.links`.
 - **TSX path context**: `<Link>` gets the note's path from `NoteContext`. The server must take the context from `vite.ssrLoadModule("/src/runtime/index.ts")`, not a Node import, because notes use the SSR module instance. The client provides it in `usePageBody`.
 - **Render output never depends on other pages**: existence checks, `broken` refs and backlinks come from `checkLinks` (`link-check.ts`), which reruns over the whole index after every `sync()`. The API serves pages as `PageView` (page + url + backlinks + broken), and the client marks broken links in the DOM.
-- **Client**: `LinkLayer` handles all `a.zn-link` behavior at the document level: the `zn-mod` class while Ctrl/Cmd is held, the hover preview, the touch sheet and in-app navigation (`goTo`). `BlockView` is the shared block display (previews now, cheat sheet cards later). It renders the whole page body and hides everything except the target section (`focusSection`).
+- **Client**: `LinkLayer` handles all `a.zn-link` behavior at the document level: the `zn-mod` class while Ctrl/Cmd is held, the hover preview, the touch sheet and in-app navigation (`goTo`). `BlockView` is the shared block display (previews and cheat sheet cards). It renders the whole page body and hides everything except the target section (`focusSection`).
+
+### Cheat sheet
+
+- **Data**: `content/<subject>/_cheats.json` holds only `{ id, ref, added }` cards in display order. A card's `ref` is a relative link from that file, resolved with `resolveCardRef` (`src/shared/cheats.ts`, a wrapper over `resolveLink`), and must carry `#id`.
+- **Server** (`src/pipeline/cheats.ts`): `CheatStore` reads the file fresh on every request and serializes writes per subject (temp file + rename, one card per line, unknown fields kept, malformed files never overwritten). `describeCards` resolves cards against the index into `CheatCardView`s plus diagnostics; the indexer reruns it on every `sync()`. The API lives under `/api/cheats/:subject`.
+- **Client**: `CheatPanel` (mounted in `App`) is the edge dock; cards render through `BlockView`, so they follow source edits. `useCheatAdd` (used by `NoteBody` only) injects the heading `+` buttons into the DOM and asks before adding an overlapping block (`relatedSections`). Filtering (`filterCards`) and drag reordering (`moveCard`) are pure functions in `src/shared/cheats.ts`.
+- Writes bump the client's content version immediately; the watcher's `zyninote:update` follows.
 
 ### Indexing, cache and live update
 
