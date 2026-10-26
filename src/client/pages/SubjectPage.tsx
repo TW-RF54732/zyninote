@@ -44,15 +44,11 @@ export function SubjectPage({ name }: { name: string }) {
         <ol className="chapter-list">
           {subject.notes.map((note, i) => (
             <li key={note.slug} className="chapter">
-              <span className="card-number">{String(i + 1).padStart(2, "0")}</span>
-              <div className="chapter-main">
-                <Link href={note.url} className="chapter-title">
-                  {note.meta.title}
-                </Link>
-                {note.meta.summary && <p className="chapter-summary">{note.meta.summary}</p>}
-                <Tags tags={note.meta.tags} />
-                <TocTree items={note.toc} pageUrl={note.url} />
-              </div>
+              <Link href={note.url} className="chapter-title">
+                {i + 1}. {note.meta.title}
+              </Link>
+              {note.meta.summary && <p className="chapter-summary">{note.meta.summary}</p>}
+              <TocTree items={note.toc} pageUrl={note.url} />
             </li>
           ))}
         </ol>

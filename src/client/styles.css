@@ -73,14 +73,16 @@ main { flex: 1; outline: none; }
 .directory { border-top: 1px solid var(--line); padding-top: 32px; }
 .directory-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
 .directory-heading h2 { font-size: clamp(24px, 3vw, 30px); letter-spacing: -1px; margin: 0; }
-.chapter-list { list-style: none; padding: 0; margin: 0; }
-.chapter { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; padding-block: 28px; border-bottom: 1px solid var(--line); }
-.chapter .card-number { padding-top: 6px; }
-.chapter-title { font-size: 21px; font-weight: 600; letter-spacing: -.3px; }
+.chapter-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 40px 48px; align-items: start; }
+.chapter { min-width: 0; }
+.chapter-title { display: block; font-size: 18px; font-weight: 600; margin: 0 0 4px; }
 .chapter-title:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #777; }
-.chapter-summary { color: var(--muted); font-size: 15px; margin: 4px 0 0; }
-.chapter .toc-tree { margin-top: 16px; columns: 2 280px; column-gap: 40px; }
-.chapter .toc-tree > li { break-inside: avoid; }
+.chapter-summary { color: var(--muted); font-size: 14px; margin: 0 0 8px; }
+/* Plain markdown-style outline: one vertical bullet list, nesting by indent. */
+.chapter .toc-tree { list-style: disc; padding-left: 20px; margin: 8px 0 0; }
+.chapter .toc-tree .toc-tree { border-left: 0; margin-left: 0; padding-left: 20px; list-style: circle; }
+.chapter .toc-tree li::marker { color: var(--faint); }
+.chapter .toc-link { display: inline; padding: 2px 0; }
 
 /* TOC tree (subject directory + note sidebar) */
 .toc-tree { list-style: none; margin: 0; padding: 0; font-size: 14px; }
@@ -173,7 +175,6 @@ main { flex: 1; outline: none; }
   .page-intro { padding-block: 32px 28px; }
   .page-intro h1 { letter-spacing: -1px; }
   .lead { font-size: 15px; }
-  .chapter { grid-template-columns: minmax(0, 1fr); }
   .pager { grid-template-columns: 1fr; }
   .pager-next { grid-column: 1; }
   .footer { flex-direction: column; gap: 4px; }
