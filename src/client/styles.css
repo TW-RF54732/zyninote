@@ -226,17 +226,17 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
   border: 0;
   background: transparent;
   color: var(--faint);
-  font-size: .7em;
-  font-weight: 400;
+  font-size: .4em;
   line-height: 1;
   letter-spacing: 0;
   cursor: pointer;
   opacity: .6;
   transition: opacity 150ms, color 150ms;
 }
+.zn-cheat-add svg { display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter; }
 .zn-cheat-add:hover { opacity: 1; color: var(--text); }
 /* Already a card: a small check, always shown. */
-.zn-cheat-add[data-added] { opacity: 1; color: var(--muted); font-size: .55em; }
+.zn-cheat-add[data-added] { opacity: 1; color: var(--muted); }
 @media (hover: hover) {
   .zn-cheat-add:not([data-added]) { opacity: 0; }
   .zn-section > :first-child:hover > .zn-cheat-add, .zn-cheat-add:focus-visible { opacity: 1; }
