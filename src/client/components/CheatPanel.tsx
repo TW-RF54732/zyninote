@@ -10,6 +10,8 @@ import { BlockView } from "./BlockView.tsx";
 /** The card's width is the user's (resized by dragging its left edge) and survives reloads. */
 const MIN_WIDTH = 300;
 const DEFAULT_WIDTH = 420;
+/** A hover-opened card closes only once the mouse is this far outside it, so small overshoots do not close it. */
+const CLOSE_MARGIN = 20;
 
 type StoredFilter = Omit<CheatFilter, "currentPage">;
 const DEFAULT_FILTER: StoredFilter = { mode: "sub", chapters: [], tags: [], tagMode: "any" };
@@ -34,7 +36,7 @@ export function CheatPanel() {
 
 /**
  * A floating card that slides in from the right edge. Collapsed, it sits almost entirely off screen with only its `‹`
- * strip showing; hovering slides it in at once and leaving slides it out; clicking pins it in (touch screens only use
+ * strip showing; hovering slides it in at once and moving CLOSE_MARGIN away slides it out; clicking pins it in (touch screens only use
  * clicks). Dragging the open card's left edge resizes it. It is purely an overlay and never changes the page layout.
  */
 function Dock({ subject, currentPage }: { subject: string; currentPage: string }) {
@@ -44,11 +46,25 @@ function Dock({ subject, currentPage }: { subject: string; currentPage: string }
   const [hovering, setHovering] = useState(false);
   const [resize, setResize] = useState<{ startX: number; startWidth: number; width: number } | null>(null);
   const pointer = useRef("");
+  const dockRef = useRef<HTMLDivElement>(null);
   const open = pinned || hovering;
+  const resizing = resize !== null;
   const width = clampWidth(resize?.width ?? savedWidth);
   // Cards load on first open, then stay mounted so the card can slide out with its content.
   const [opened, setOpened] = useState(open);
   if (open && !opened) setOpened(true);
+
+  useEffect(() => {
+    if (!hovering || pinned || resizing) return;
+    const onMove = (event: PointerEvent) => {
+      const rect = dockRef.current?.getBoundingClientRect();
+      if (event.pointerType !== "mouse" || !rect) return;
+      const { clientX: x, clientY: y } = event;
+      if (x < rect.left - CLOSE_MARGIN || x > rect.right + CLOSE_MARGIN || y < rect.top - CLOSE_MARGIN || y > rect.bottom + CLOSE_MARGIN) setHovering(false);
+    };
+    document.addEventListener("pointermove", onMove);
+    return () => document.removeEventListener("pointermove", onMove);
+  }, [hovering, pinned, resizing]);
 
   useEffect(() => {
     if (!hovering || pinned) return;
@@ -83,12 +99,12 @@ function Dock({ subject, currentPage }: { subject: string; currentPage: string }
 
   return (
     <div
+      ref={dockRef}
       className="cheat-dock"
       data-open={open || undefined}
       data-resizing={resize ? "" : undefined}
       style={{ width }}
       onPointerEnter={(event) => isMouse(event) && setHovering(true)}
-      onPointerLeave={(event) => isMouse(event) && !resize && setHovering(false)}
       onPointerDownCapture={(event) => (pointer.current = event.pointerType)}
     >
       {open && (
