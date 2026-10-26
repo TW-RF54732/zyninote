@@ -1,0 +1,39 @@
+---
+title: TCP
+tags: [傳輸層]
+order: 2
+summary: 連線建立、旗標與可靠傳輸
+---
+
+import HandshakeStepper from "../_components/HandshakeStepper.tsx";
+
+## 三次握手 {#three-way-handshake}
+
+TCP 在傳送資料前，先用三個區段建立連線。
+
+<HandshakeStepper />
+
+### 為什麼是三次
+
+兩次無法讓 Server 確認 Client 收到了它的初始序號 $y$。
+
+## TCP Flags {#tcp-flags .fold}
+
+| Flag | 意義 |
+|---|---|
+| SYN | 同步序號，建立連線 |
+| ACK | 確認號欄位有效 |
+| FIN | 傳送端結束傳送 |
+| RST | 重置連線 |
+
+### 少見的旗標 {.fold}
+
+`URG` 與 `PSH` 在現代實作中很少使用。
+
+## 可靠傳輸
+
+TCP 用序號、確認與重傳保證資料不遺失也不重複。估計的 RTT 為：
+
+$$
+\text{EstimatedRTT} = (1 - \alpha) \cdot \text{EstimatedRTT} + \alpha \cdot \text{SampleRTT}
+$$
