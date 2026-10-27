@@ -28,6 +28,9 @@ export function createVite(httpServer?: Server): Promise<ViteDevServer> {
     root,
     appType: "custom",
     logLevel: "warn",
+    // The checker's optimizer would otherwise rewrite node_modules/.vite/deps with its smaller dep set under a
+    // running dev server, which then answers 504 for deps it already handed out (mermaid failed silently this way).
+    cacheDir: join(root, httpServer ? "node_modules/.vite" : "node_modules/.vite-check"),
     server: httpServer
       ? { middlewareMode: true, hmr: { server: httpServer }, watch: { ignored: ["**/.zyninote/**"] }, fs: { allow: [root, contentDir] } }
       : { middlewareMode: true, hmr: false, watch: null, fs: { allow: [root, contentDir] } },
