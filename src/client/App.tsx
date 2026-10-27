@@ -3,6 +3,8 @@ import { CheatPanel } from "./components/CheatPanel.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Header } from "./components/Header.tsx";
 import { LinkLayer } from "./components/LinkLayer.tsx";
+import { NavSidebar } from "./components/NavSidebar.tsx";
+import { useNavDefaults } from "./nav.ts";
 import { NotePage } from "./pages/NotePage.tsx";
 import { ProblemsPage } from "./pages/ProblemsPage.tsx";
 import { RootPage } from "./pages/RootPage.tsx";
@@ -10,6 +12,7 @@ import { SubjectPage } from "./pages/SubjectPage.tsx";
 
 export function App() {
   const [location] = useLocation();
+  useNavDefaults();
   return (
     <>
       <a className="skip-link" href="#content">
@@ -31,9 +34,7 @@ export function App() {
           </Switch>
         </ErrorBoundary>
       </main>
-      <footer className="footer container">
-        <span>Zyninote / 有結構的學習筆記</span>
-      </footer>
+      <NavSidebar />
       <LinkLayer />
       <CheatPanel />
     </>

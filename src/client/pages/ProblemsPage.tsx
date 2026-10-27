@@ -19,37 +19,39 @@ export function ProblemsPage() {
   const errors = tree.diagnostics.filter((d) => d.level === "error").length;
 
   return (
-    <>
-      <div className="page-intro">
-        <p className="eyebrow">檢查</p>
-        <h1>問題列表</h1>
-        <p className="lead">{tree.diagnostics.length ? `${errors} 個錯誤，${tree.diagnostics.length - errors} 個警告` : "沒有問題。"}</p>
+    <div className="note-layout">
+      <div className="note-sidebar" aria-hidden="true" />
+      <div className="subject-main">
+        <header className="note-header">
+          <h1>問題列表</h1>
+          <p className="lead">{tree.diagnostics.length ? `${errors} 個錯誤，${tree.diagnostics.length - errors} 個警告` : "沒有問題。"}</p>
+        </header>
+        <ul className="problem-list">
+          {[...groups].map(([path, diagnostics]) => {
+            const url = urlOf(tree, path);
+            return (
+              <li key={path}>
+                {url ? (
+                  <Link href={url} className="problem-path">
+                    {path}
+                  </Link>
+                ) : (
+                  <span className="problem-path">{path}</span>
+                )}
+                <ul>
+                  {diagnostics.map((d, i) => (
+                    <li key={i} className="problem" data-level={d.level}>
+                      <span className="problem-level">{d.level === "error" ? "錯誤" : "警告"}</span>
+                      <span>{d.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-      <ul className="problem-list">
-        {[...groups].map(([path, diagnostics]) => {
-          const url = urlOf(tree, path);
-          return (
-            <li key={path}>
-              {url ? (
-                <Link href={url} className="problem-path">
-                  {path}
-                </Link>
-              ) : (
-                <span className="problem-path">{path}</span>
-              )}
-              <ul>
-                {diagnostics.map((d, i) => (
-                  <li key={i} className="problem" data-level={d.level}>
-                    <span className="problem-level">{d.level === "error" ? "錯誤" : "警告"}</span>
-                    <span>{d.message}</span>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          );
-        })}
-      </ul>
-    </>
+    </div>
   );
 }
 

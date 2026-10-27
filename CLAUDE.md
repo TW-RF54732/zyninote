@@ -86,7 +86,11 @@ The client is React 19 with wouter. Routes are `/`, `/:subject/` (the detailed c
   - Folding is a `data-collapsed` attribute toggled by clicking a heading. Fold state is never persisted across loads.
   - Hash navigation expands collapsed ancestors (`reveal`).
   - Mermaid loads lazily and renders only visible diagrams.
-- **Layout decision** (overrides PLAN.md 6.1): copy only the *visual style* of onesource.zynimous.dev (dark #141414, monochrome, thin lines; tokens in `styles.css`), not its layout. A chapter page's sidebar shows **that page's own headings**. The subject page is a detailed directory of every chapter's full heading tree.
+- **Layout decision** (overrides PLAN.md 6.1): copy only the *visual style* of onesource.zynimous.dev (dark #141414, monochrome, thin lines), not its layout. Every page is: sticky `.topbar` header, a left rail column (`--rail`) and the main column; no footer.
+  - A chapter page's left rail shows **that page's own headings** (`PageToc`).
+  - `NavSidebar` is the global sidebar (subjects → notes, never headings). Its open state lives in `nav.ts` and resets per route: open on directory pages (docked in the rail), closed while reading (when opened it floats over the page TOC). Narrow screens: drawer. Ctrl/Cmd+B toggles, `/` focuses search.
+  - The subject page reads like a book's contents (chapters separated like h2 sections, heading trees, no cards or numbering); the home page does the same one level up.
+  - Design tokens (colors, type scale with nothing under 14px, radii, shadow) live in `:root` in `styles.css`; components use the variables, not raw hex or pixel font sizes.
 
 ## Content rules (enforced by `scan.ts`)
 
