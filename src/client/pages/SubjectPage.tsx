@@ -52,7 +52,7 @@ export function SubjectPage({ name }: { name: string }) {
                   {note.meta.title}
                 </Link>
                 {note.meta.summary && <p className="subject-chapter-summary">{note.meta.summary}</p>}
-                <TocTree items={note.toc} pageUrl={note.url} />
+                <TocTree items={unfolded(note.toc)} pageUrl={note.url} />
               </li>
             ))}
           </ol>
@@ -64,6 +64,11 @@ export function SubjectPage({ name }: { name: string }) {
       </div>
     </div>
   );
+}
+
+/** The contents leave out sections folded by default (and everything under them); the chapter's own TOC lists them. */
+function unfolded(items: TocItem[]): TocItem[] {
+  return items.filter((item) => !item.fold).map((item) => ({ ...item, children: unfolded(item.children) }));
 }
 
 type TagFilterProps = { subject: SubjectSummary; selected: string[]; onChange: (tags: string[]) => void };
