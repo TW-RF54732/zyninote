@@ -37,7 +37,8 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: var(--header-h); }
+/* No rubber-band at the page edges: it would drag the sticky top bar along with the page. */
+html { scroll-behavior: smooth; scroll-padding-top: var(--header-h); overscroll-behavior-y: none; }
 body {
   margin: 0;
   overflow-x: clip;
@@ -385,13 +386,13 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
   .zn-section > :first-child:hover > .zn-cheat-add, .zn-cheat-add:focus-visible { opacity: 1; }
 }
 
-/* Cheat sheet: a floating, rounded card docked to a screen corner (data-h, data-v). Collapsed, it slides off its side
-   edge so only the arrow strip shows; it never moves the page. */
+/* Cheat sheet: a floating, rounded card docked to a screen corner (data-h, data-v), always below the top bar. Collapsed,
+   it slides off its side edge so only the arrow strip shows; it never moves the page. */
 .cheat-dock {
   position: fixed;
   z-index: 15;
   display: flex;
-  height: min(72vh, calc(100vh - 32px));
+  height: min(72vh, calc(100vh - var(--header-h) - 28px));
   background: var(--surface-2);
   border-radius: var(--radius);
   box-shadow: var(--shadow-float);
@@ -401,7 +402,7 @@ a.problem-path:hover { text-decoration: underline; text-underline-offset: 4px; t
 .cheat-dock[data-h="right"] { right: 12px; }
 .cheat-dock[data-h="left"] { left: 12px; flex-direction: row-reverse; }
 .cheat-dock[data-v="bottom"] { bottom: 16px; }
-.cheat-dock[data-v="top"] { top: 16px; }
+.cheat-dock[data-v="top"] { top: calc(var(--header-h) + 12px); }
 /* Off screen except the 28px strip: shift by the card's width plus the 12px gap, minus the strip. */
 .cheat-dock[data-h="right"]:not([data-open]) { transform: translateX(calc(100% - 16px)); }
 .cheat-dock[data-h="left"]:not([data-open]) { transform: translateX(calc(-100% + 16px)); }

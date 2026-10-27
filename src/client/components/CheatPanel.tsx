@@ -237,8 +237,11 @@ function clampWidth(width: number): number {
   return Math.round(Math.max(Math.min(MIN_WIDTH, window.innerWidth - 24), Math.min(width, window.innerWidth - 24)));
 }
 
+/** The card never reaches under the sticky top bar: 12px below it and 16px above the bottom edge. */
 function clampHeight(height: number): number {
-  return Math.round(Math.max(Math.min(MIN_HEIGHT, window.innerHeight - 32), Math.min(height, window.innerHeight - 32)));
+  const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 0;
+  const max = window.innerHeight - header - 28;
+  return Math.round(Math.max(Math.min(MIN_HEIGHT, max), Math.min(height, max)));
 }
 
 type PanelProps = {
