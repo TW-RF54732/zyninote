@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import type { ViteDevServer } from "vite";
 import { pageKeyOf, pageUrl } from "../shared/links.ts";
 import type { CheatSheetView, Diagnostic, Format, NoteSummary, Page, PageView, SearchResponse, SubjectResponse, SubjectSummary, Tree } from "../shared/types.ts";
@@ -47,7 +47,7 @@ export class Indexer {
   readonly tags: TagStore;
 
   constructor(private opts: { root: string; contentDir: string; cacheDir: string; vite: ViteDevServer }) {
-    this.cache = new Cache(opts.cacheDir);
+    this.cache = new Cache(opts.cacheDir, opts.root);
     this.cheats = new CheatStore(opts.contentDir);
     this.tags = new TagStore(opts.contentDir, (path) => this.pages.get(path)?.meta.tags);
     this.entries = this.cache.loadEntries();
@@ -234,10 +234,10 @@ export class Indexer {
         if (source.isSubject) page.subjectMeta = normalizeSubjectMeta(data, fallbackTitle);
         page.html = await this.renderMarkdown(body, file);
       } else {
-        const rendered = await renderModule(this.opts.vite, this.opts.root, file, source.path);
+        const rendered = await renderModule(this.opts.vite, [this.opts.root, this.opts.contentDir], file, source.path);
         page.meta = normalizePageMeta(rendered.meta, fallbackTitle);
         page.html = rendered.html;
-        for (const dep of rendered.deps) deps[relative(this.opts.root, dep)] = this.hashFile(dep);
+        for (const dep of rendered.deps) deps[this.depKey(dep)] = this.hashFile(dep);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -258,11 +258,17 @@ export class Indexer {
   private depsUnchanged(deps: Record<string, string>): boolean {
     return Object.entries(deps).every(([dep, hash]) => {
       try {
-        return this.hashFile(join(this.opts.root, dep)) === hash;
+        return this.hashFile(isAbsolute(dep) ? dep : join(this.opts.root, dep)) === hash;
       } catch {
         return false;
       }
     });
+  }
+
+  /** App files are keyed relative to the project root; vault files outside it keep their absolute path. */
+  private depKey(dep: string): string {
+    const rel = relative(this.opts.root, dep);
+    return rel.startsWith("..") || isAbsolute(rel) ? dep : rel;
   }
 
   private hashFile(file: string): string {

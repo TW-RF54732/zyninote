@@ -1,7 +1,6 @@
-import { relative } from "node:path";
 import { createElement, type ComponentType, type Context } from "react";
 import { renderToString } from "react-dom/server";
-import type { EnvironmentModuleNode, ViteDevServer } from "vite";
+import { normalizePath, type EnvironmentModuleNode, type ViteDevServer } from "vite";
 
 export type RenderedModule = {
   html: string;
@@ -14,8 +13,10 @@ export type RenderedModule = {
  * Renders a .mdx or .tsx note through Vite's SSR loader, so it uses the exact plugin chain the browser uses.
  * `path` is the note's content-relative path, provided to `<Link>` through NoteContext like the client does.
  */
-export async function renderModule(vite: ViteDevServer, root: string, file: string, path: string): Promise<RenderedModule> {
-  const url = `/${relative(root, file).split("\\").join("/")}`;
+export async function renderModule(vite: ViteDevServer, roots: string[], file: string, path: string): Promise<RenderedModule> {
+  file = normalizePath(file);
+  // Same URL the browser imports; the zyninote:vault plugin maps it to the vault wherever it is on disk.
+  const url = `/content/${path}`;
   // A note is only rebuilt when its source changed, but Vite's invalidation arrives with the watcher, which can be
   // later than the sync (tag writes resync right away). Drop the cached module so the current source is loaded.
   const graph = vite.environments.ssr.moduleGraph;
@@ -29,18 +30,19 @@ export async function renderModule(vite: ViteDevServer, root: string, file: stri
   return {
     html: renderToString(createElement(NoteContext.Provider, { value: path }, createElement(Component))),
     meta: mod.meta as Record<string, unknown> | undefined,
-    deps: collectDeps(vite, root, file),
+    deps: collectDeps(vite, roots.map((r) => `${normalizePath(r)}/`), file),
   };
 }
 
-function collectDeps(vite: ViteDevServer, root: string, file: string): string[] {
+/** `roots` end with "/"; only files under them (app or vault) count as dependencies. */
+function collectDeps(vite: ViteDevServer, roots: string[], file: string): string[] {
   const graph = vite.environments.ssr.moduleGraph;
   const deps = new Set<string>();
   const seen = new Set<EnvironmentModuleNode>();
   const walk = (mod: EnvironmentModuleNode) => {
     if (seen.has(mod)) return;
     seen.add(mod);
-    if (mod.file && mod.file !== file && mod.file.startsWith(root) && !mod.file.includes("/node_modules/")) deps.add(mod.file);
+    if (mod.file && mod.file !== file && roots.some((r) => mod.file!.startsWith(r)) && !mod.file.includes("/node_modules/")) deps.add(mod.file);
     mod.importedModules.forEach(walk);
   };
   graph.getModulesByFile(file)?.forEach(walk);

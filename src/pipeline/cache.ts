@@ -1,4 +1,5 @@
 // Derived data only. Everything here can be deleted and rebuilt from content/.
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Page } from "../shared/types.ts";
@@ -14,23 +15,30 @@ export type CacheEntry = {
 
 type Manifest = {
   pipelineVersion: number;
+  /** Hash of the installed dependency tree; renderers (remark-math, KaTeX, ...) change output without a source change. */
+  installed: string;
   entries: Record<string, CacheEntry>;
 };
 
 export class Cache {
-  constructor(private dir: string) {}
+  private installed: string;
+
+  /** `root` is the project root, whose `node_modules/.package-lock.json` records what npm actually installed. */
+  constructor(private dir: string, root: string) {
+    this.installed = installedHash(root);
+  }
 
   loadEntries(): Record<string, CacheEntry> {
     try {
       const manifest = JSON.parse(readFileSync(join(this.dir, "manifest.json"), "utf8")) as Manifest;
-      return manifest.pipelineVersion === PIPELINE_VERSION ? manifest.entries : {};
+      return manifest.pipelineVersion === PIPELINE_VERSION && manifest.installed === this.installed ? manifest.entries : {};
     } catch {
       return {};
     }
   }
 
   saveEntries(entries: Record<string, CacheEntry>) {
-    this.write("manifest.json", JSON.stringify({ pipelineVersion: PIPELINE_VERSION, entries } satisfies Manifest));
+    this.write("manifest.json", JSON.stringify({ pipelineVersion: PIPELINE_VERSION, installed: this.installed, entries } satisfies Manifest));
   }
 
   readPage(path: string): Page | null {
@@ -58,4 +66,13 @@ export class Cache {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, data);
   }
+}
+
+function installedHash(root: string): string {
+  for (const file of ["node_modules/.package-lock.json", "package-lock.json"]) {
+    try {
+      return createHash("sha1").update(readFileSync(join(root, file))).digest("hex").slice(0, 16);
+    } catch {}
+  }
+  return "";
 }

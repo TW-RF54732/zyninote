@@ -2,15 +2,21 @@ import { getRequestListener } from "@hono/node-server";
 import { readFile } from "node:fs/promises";
 import { createServer as createHttpServer } from "node:http";
 import { join } from "node:path";
+import { normalizePath } from "vite";
 import { Indexer, type SyncResult } from "../pipeline/indexer.ts";
 import type { UpdateEvent } from "../shared/types.ts";
 import { createApi } from "./api.ts";
 import { cacheDir, contentDir, createVite, printDiagnostics, root } from "./setup.ts";
+import { rememberVault } from "./vault.ts";
 
 const port = Number(process.env.PORT ?? 5180);
 
 const httpServer = createHttpServer();
 const vite = await createVite(httpServer);
+
+console.log(`[zyninote] vault：${contentDir}`);
+// Vite only watches its own root; a vault elsewhere has to be added (a no-op when it is content/).
+vite.watcher.add(contentDir);
 
 const indexer = new Indexer({ root, contentDir, cacheDir, vite });
 
@@ -21,8 +27,11 @@ printDiagnostics(indexer.allDiagnostics());
 // Content changes: debounce, then resync (only changed pages are rebuilt) and tell the browser.
 let timer: NodeJS.Timeout | undefined;
 let running: Promise<void> = Promise.resolve();
+// Watcher paths use native separators on Windows; compare normalized, and skip the vault's own state folder.
+const vaultPrefix = `${normalizePath(contentDir)}/`;
 vite.watcher.on("all", (_event, file) => {
-  if (!file.startsWith(contentDir)) return;
+  const f = normalizePath(file);
+  if (!f.startsWith(vaultPrefix) || f.startsWith(`${vaultPrefix}.zyninote/`)) return;
   clearTimeout(timer);
   timer = setTimeout(queueResync, 50);
 });
@@ -72,4 +81,8 @@ httpServer.on("request", (req, res) => {
   });
 });
 
-httpServer.listen(port, () => console.log(`[zyninote] http://localhost:${port}/`));
+httpServer.listen(port, () => {
+  // Only a vault that actually started becomes the default for the next start.
+  rememberVault(contentDir);
+  console.log(`[zyninote] http://localhost:${port}/`);
+});

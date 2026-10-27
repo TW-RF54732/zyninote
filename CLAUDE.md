@@ -68,7 +68,7 @@ Each format renders to HTML whose headings are wrapped in `<section class="zn-se
 2. It hashes each source plus its recorded dependencies. MDX/TSX dependencies come from the Vite SSR module graph.
 3. It rebuilds only pages whose hashes changed, otherwise reusing `.zyninote/cache/` (`cache.ts`).
 
-Failed builds keep an empty hash so they retry on every sync. Bump `PIPELINE_VERSION` in `cache.ts` whenever rendering or segmenting output changes. The cache must stay purely derived: deleting it must never lose data.
+Failed builds keep an empty hash so they retry on every sync. Bump `PIPELINE_VERSION` in `cache.ts` whenever rendering or segmenting output changes. The manifest is also keyed on a hash of `node_modules/.package-lock.json`, so reinstalling or upgrading dependencies (remark-math, KaTeX, ...) rebuilds every page. The cache must stay purely derived: deleting it must never lose data.
 
 On a change under `content/`:
 

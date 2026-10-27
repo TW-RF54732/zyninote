@@ -14,6 +14,14 @@ npm test           # 管線單元測試
 npm run typecheck
 ```
 
+筆記資料夾（vault）與程式分開，可以是任何資料夾：
+
+```sh
+npm run dev -- --vault D:\Notes     # 或 ZYNINOTE_VAULT=D:\Notes；check 也吃同樣參數
+```
+
+優先順序：`--vault` > `ZYNINOTE_VAULT` > 上次成功啟動的 vault（`~/.zyninote/last.json`）> `./content`。快取放在 `<vault>/.zyninote/`。
+
 ## 結構
 
 ```
