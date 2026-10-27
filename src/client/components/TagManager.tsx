@@ -7,7 +7,7 @@ import { Dialog } from "./Dialog.tsx";
 type Row = { tag: string; registered: boolean; notes: NoteSummary[] };
 type Confirm = { title: string; body: string; action: string; run: () => Promise<unknown> };
 
-/** A subject's tags: the registry from _subject.md plus tags notes use without registering, with rename, merge and removal. */
+/** A subject's tags (shown inside a dialog, which supplies the heading): the registry from _subject.md plus tags notes use without registering, with rename, merge and removal. */
 export function TagManager({ subject }: { subject: SubjectSummary }) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
@@ -63,11 +63,7 @@ export function TagManager({ subject }: { subject: SubjectSummary }) {
   };
 
   return (
-    <section className="tag-manager" aria-labelledby="tag-manager-title">
-      <div className="directory-heading">
-        <h2 id="tag-manager-title">Tag</h2>
-        <span className="card-meta">{registry.length} 個已註冊</span>
-      </div>
+    <div className="tag-manager">
       <ul className="tag-rows">
         {rows.map((row) => (
           <li key={row.tag} className="tag-row">
@@ -138,6 +134,6 @@ export function TagManager({ subject }: { subject: SubjectSummary }) {
           <p>{confirm.body}</p>
         </Dialog>
       )}
-    </section>
+    </div>
   );
 }

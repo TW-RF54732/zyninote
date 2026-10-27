@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import type { TocItem } from "../../shared/types.ts";
 import { TocTree } from "./TocTree.tsx";
 
-/** The note page sidebar: this page's own headings, highlighting the one currently being read. */
-export function PageToc({ toc, contentKey }: { toc: TocItem[]; contentKey: string }) {
-  const active = useActiveSection(contentKey);
+/** The note page sidebar: this page's own headings, highlighting the one currently being read (`useActiveSection`). */
+export function PageToc({ toc, active }: { toc: TocItem[]; active: string | null }) {
   return (
     <nav aria-label="本頁目錄">
       <TocTree items={toc} activeId={active} />
@@ -12,7 +11,10 @@ export function PageToc({ toc, contentKey }: { toc: TocItem[]; contentKey: strin
   );
 }
 
-function useActiveSection(contentKey: string): string | null {
+const NOTE_HEADINGS = "#content .note-body section.zn-section > :first-child";
+
+/** The id of the last visible element matching `selector` (by default the note's headings) whose top has scrolled past the top of the screen. */
+export function useActiveSection(contentKey: string, selector = NOTE_HEADINGS): string | null {
   const [active, setActive] = useState<string | null>(null);
 
   useEffect(() => {
@@ -20,7 +22,7 @@ function useActiveSection(contentKey: string): string | null {
     const update = () => {
       frame = 0;
       let current: string | null = null;
-      for (const heading of document.querySelectorAll<HTMLElement>("#content .note-body section.zn-section > :first-child")) {
+      for (const heading of document.querySelectorAll<HTMLElement>(selector)) {
         if (heading.offsetParent === null) continue;
         if (heading.getBoundingClientRect().top > 120) break;
         current = heading.id;
@@ -38,7 +40,7 @@ function useActiveSection(contentKey: string): string | null {
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("hashchange", schedule);
     };
-  }, [contentKey]);
+  }, [contentKey, selector]);
 
   return active;
 }

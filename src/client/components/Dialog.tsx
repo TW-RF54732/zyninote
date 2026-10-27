@@ -7,10 +7,12 @@ type DialogProps = {
   confirm?: string;
   onConfirm?: () => void;
   onClose: () => void;
+  /** Room for a small tool (the tag manager) rather than a sentence. */
+  wide?: boolean;
 };
 
 /** A small modal built on <dialog>: Esc and the backdrop close it, focus returns to where it was. */
-export function Dialog({ title, children, confirm, onConfirm, onClose }: DialogProps) {
+export function Dialog({ title, children, confirm, onConfirm, onClose, wide }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -22,9 +24,10 @@ export function Dialog({ title, children, confirm, onConfirm, onClose }: DialogP
   return (
     <dialog
       ref={ref}
-      className="zn-dialog"
+      className={wide ? "zn-dialog zn-dialog-wide" : "zn-dialog"}
       aria-labelledby="zn-dialog-title"
-      onClose={onClose}
+      // React bubbles `close` through its tree, so a nested dialog closing must not close this one.
+      onClose={(event) => event.target === event.currentTarget && onClose()}
       onClick={(event) => event.target === event.currentTarget && onClose()}
     >
       <h2 id="zn-dialog-title">{title}</h2>

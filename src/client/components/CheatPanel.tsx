@@ -6,6 +6,7 @@ import type { CheatCardView, NoteSummary, TocItem } from "../../shared/types.ts"
 import { goTo } from "../behavior/links.ts";
 import { removeCheat, reorderCheats, repointCheat, useCheats, usePageByKey, useTree } from "../data.ts";
 import { BlockView } from "./BlockView.tsx";
+import { CheckGroup } from "./CheckGroup.tsx";
 
 /** The card's width is the user's (resized by dragging its left edge) and survives reloads. */
 const MIN_WIDTH = 300;
@@ -379,29 +380,6 @@ function Panel({ subject, currentPage, cards, fileError, open, onMoveStart }: Pa
         empty={cards.length ? "沒有符合的卡片。" : "還沒有卡片。按標題旁的 + 把區塊加入 cheat sheet。"}
       />
     </section>
-  );
-}
-
-type CheckGroupProps = {
-  label: string;
-  options: { value: string; label: string }[];
-  selected: string[];
-  onToggle: (value: string) => void;
-  /** Lay the options out in a wrapping row (tags) rather than one per line (chapters). */
-  inline?: boolean;
-};
-
-function CheckGroup({ label, options, selected, onToggle, inline }: CheckGroupProps) {
-  return (
-    <fieldset className="cheat-check-group" data-inline={inline || undefined}>
-      <legend>{label}</legend>
-      {options.map((option) => (
-        <label key={option.value} className="cheat-check">
-          <input type="checkbox" checked={selected.includes(option.value)} onChange={() => onToggle(option.value)} />
-          {option.label}
-        </label>
-      ))}
-    </fieldset>
   );
 }
 
