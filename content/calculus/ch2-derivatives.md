@@ -1,6 +1,6 @@
 ---
 title: 導數
-tags: [公式]
+tags: []
 summary: 導數定義與基本微分規則
 links: visible
 ---

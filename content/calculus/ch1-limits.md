@@ -1,6 +1,6 @@
 ---
 title: 極限
-tags: [basic, 定義]
+tags: [basic]
 summary: 極限的直觀意義與 ε-δ 定義
 ---
 
