@@ -7,6 +7,7 @@ import { Indexer, type SyncResult } from "../pipeline/indexer.ts";
 import type { UpdateEvent } from "../shared/types.ts";
 import { createApi } from "./api.ts";
 import { cacheDir, contentDir, createVite, printDiagnostics, root } from "./setup.ts";
+import { serveVaultFile } from "./vault-files.ts";
 import { rememberVault } from "./vault.ts";
 
 const port = Number(process.env.PORT ?? 5180);
@@ -58,11 +59,12 @@ async function resync() {
 const api = getRequestListener(createApi(indexer, { resync: queueResync }).fetch);
 const indexHtml = join(root, "src/client/index.html");
 
-httpServer.on("request", (req, res) => {
+httpServer.on("request", async (req, res) => {
   if (req.url?.startsWith("/api/")) {
     api(req, res);
     return;
   }
+  if (await serveVaultFile(contentDir, req, res)) return;
   vite.middlewares(req, res, async () => {
     if (req.method !== "GET") {
       res.statusCode = 404;

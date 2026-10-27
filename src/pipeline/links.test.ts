@@ -96,6 +96,16 @@ describe("link rendering", () => {
     expect(sections.find((s) => s.id === "a")!.links.map((l) => l.ref)).toEqual(["b"]);
   });
 
+  it("resolves relative image paths to vault files and leaves external images alone", async () => {
+    const { html, links } = await md('![a](img/a%20b.png) ![b](../calc/b.svg) ![c](../../c.png) ![d](https://x.test/d.png)\n\n<img src="e.png">');
+    expect(html).toContain('<img src="/content/net/img/a%20b.png" alt="a">');
+    expect(html).toContain('<img src="/content/calc/b.svg" alt="b">');
+    expect(html).toContain('<img alt="c">');
+    expect(html).toContain('<img src="https://x.test/d.png" alt="d" referrerpolicy="no-referrer">');
+    expect(html).toContain('<img src="/content/net/e.png">');
+    expect(links).toEqual([]);
+  });
+
   it("resolves MDX links relative to the file", async () => {
     const src = preprocessMdx("## A\n\n[[ch1-intro.md#osi|OSI]] [x](../calc/)\n", {});
     const code = String(await compile({ value: src, path: `${CONTENT}/net/ch2-tcp.mdx` }, notePlugins(CONTENT)));

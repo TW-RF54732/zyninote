@@ -163,7 +163,7 @@ export default function Stepper() {
 
 錯誤：以 `/` 開頭的絕對路徑、`..` 超出 vault，都會被停用並列為錯誤。
 
-圖片：app 目前只改寫 `<a>` 連結，不改寫 `<img>` 的路徑，所以 `![說明](figure.png)` 這種相對路徑圖片可能顯示不出來。需要放圖時先告訴使用者這個限制，優先用 Mermaid、表格或文字描述取代。
+圖片：`![說明](figure.png)`（或 `.md` 裡的 `<img src="figure.png">`）的相對路徑跟連結一樣從本檔解析，指向 vault 裡的檔案。圖片直接放在科目資料夾，或放進底線開頭的資料夾（例如 `_images/figure.png`）；一般子資料夾會報錯。網路圖片直接寫完整網址 `![說明](https://...)`。能用 Mermaid、表格表達的內容仍優先用它們。
 
 ## 6. `_subject.md`
 

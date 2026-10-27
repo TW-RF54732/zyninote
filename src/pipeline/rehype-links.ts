@@ -14,6 +14,7 @@ export function rehypeLinks(options: { contentDir: string }) {
   return (tree: Root, file: VFile) => {
     const from = file.path ? relative(options.contentDir, file.path).split(sep).join("/") : "";
     visit(tree, "element", (node: Element) => {
+      if (node.tagName === "img") return rewriteImage(node, from);
       if (node.tagName !== "a") return;
       const props = node.properties;
       const href = props.href;
@@ -31,4 +32,21 @@ export function rehypeLinks(options: { contentDir: string }) {
       else props.href = target.href;
     });
   };
+}
+
+/**
+ * Relative image paths resolve like links, to the file under `/content/`; paths leaving content/ lose their src.
+ * External images are requested without a referrer, since many hosts refuse hotlinks from other sites.
+ */
+function rewriteImage(node: Element, from: string) {
+  const props = node.properties;
+  const src = props.src;
+  if (typeof src !== "string" || src === "") return;
+  if (isExternal(src)) {
+    if (/^(https?:)?\/\//i.test(src)) props.referrerPolicy ??= "no-referrer";
+    return;
+  }
+  const target = resolveLink(from, safeDecode(src));
+  if (target.kind === "error") delete props.src;
+  else props.src = target.href;
 }

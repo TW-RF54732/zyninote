@@ -40,7 +40,7 @@ python <skill>/scripts/inventory.py <vault> [subject]
     ch1-intro.md          筆記，全部平行
     ch2-tcp.mdx
     _Chart.tsx            科目內的元件：底線開頭
-    slides.pdf            PDF 等附件可以直接放（圖片的限制見 syntax.md）
+    slides.pdf            PDF、圖片等附件可以直接放（或放進 _images/ 這類底線資料夾）
 ```
 
 - vault 底下只放科目資料夾。科目裡**不能有子資料夾**（違反會報錯）。

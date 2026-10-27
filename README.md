@@ -48,6 +48,7 @@ src/shared/links.ts             連結解析（管線、TSX <Link>、檢查、�
 | 標題 ID／預設摺疊 | `## 標題 {#id .fold}`（.md 與 .mdx 相同） |
 | 數學 | `$...$`、`$$...$$` |
 | 圖表 | ```` ```mermaid ```` |
+| 圖片 | `![說明](figure.png)`、`![說明](_images/figure.png)`、`![說明](https://...)` |
 | MDX 互動元件 | `import X from "../_components/X.tsx"` 後寫 `<X />` |
 | TSX 區塊 | `<Section id="..." title="..." fold>`，巢狀深度決定 h2/h3/… |
 | 互動元件描述 | 元件輸出包在 `<Interactive description="...">` 中，描述會進入區塊文字 |
@@ -66,6 +67,7 @@ TSX 筆記用 `export const meta = { title, tags, order, summary }` 提供 front
 - 三種格式的內部連結都輸出同一種標記：`<a class="zn-link" data-zn-link="quiet|visible" data-zn-ref="原文路徑" href="頁面網址">`。`.md`／`.mdx` 由 `rehype-links` 產生，TSX 由 `<Link>` 產生；兩者呼叫同一個 `resolveLink`。切段時從這個標記取出每個區塊的 `links`。
 - 渲染結果只取決於來源檔本身：目標是否存在不影響輸出。斷鏈、反向連結在每次同步後對整個索引重新計算（`link-check.ts`），所以別頁改名或刪除時，本頁連結會即時標成斷鏈，而本頁不必重建。
 - 閱讀時：按住 Ctrl（macOS 為 Cmd）會顯示安靜連結；Ctrl＋hover 顯示預覽卡；觸控裝置點連結會開浮空頁（「全螢幕」＝跳轉）。預覽與之後的 cheat sheet 卡片共用 `BlockView`：它渲染整頁（互動元件會重新啟動），只顯示目標區塊，並展開目標與其上層的摺疊，目標內的 `.fold` 子標題維持摺疊。
+- 圖片：`.md`／`.mdx` 的 `<img>` 由 `rehype-links` 用同一個 `resolveLink` 改寫成 `/content/<path>`，伺服器直接從 vault 提供這些檔案（`vault-files.ts`，只限圖片、PDF、影音等副檔名；帶 query 的請求留給 Vite）。圖片放在科目資料夾內，或底線開頭的資料夾（如 `_images/`）。超出 content/ 的路徑會移除 `src`。網路圖片加上 `referrerpolicy="no-referrer"`，避開常見的防盜連。圖片目前不列入斷鏈檢查。
 - 檢查：啟動時、`npm run check`、網頁的問題列表（`/_problems`，頁首「N 個問題」）。終端機在同步後只列出新出現的連結問題。
 
 ## Cheat sheet
