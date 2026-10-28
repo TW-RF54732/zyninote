@@ -1,6 +1,7 @@
 import { getRequestListener } from "@hono/node-server";
 import { readFile } from "node:fs/promises";
 import { createServer as createHttpServer } from "node:http";
+import { networkInterfaces } from "node:os";
 import { join } from "node:path";
 import { normalizePath } from "vite";
 import { Indexer, type SyncResult } from "../pipeline/indexer.ts";
@@ -11,6 +12,9 @@ import { serveVaultFile } from "./vault-files.ts";
 import { rememberVault } from "./vault.ts";
 
 const port = Number(process.env.PORT ?? 5180);
+// Loopback only by default; `--lan` (or HOST=0.0.0.0) also listens on the local network.
+const lan = process.argv.slice(2).includes("--lan") || process.env.HOST === "0.0.0.0";
+const host = lan ? "0.0.0.0" : (process.env.HOST ?? "localhost");
 
 const httpServer = createHttpServer();
 const vite = await createVite(httpServer);
@@ -83,8 +87,12 @@ httpServer.on("request", async (req, res) => {
   });
 });
 
-httpServer.listen(port, () => {
+httpServer.listen(port, host, () => {
   // Only a vault that actually started becomes the default for the next start.
   rememberVault(contentDir);
   console.log(`[zyninote] http://localhost:${port}/`);
+  if (!lan) return;
+  for (const addr of Object.values(networkInterfaces()).flat()) {
+    if (addr?.family === "IPv4" && !addr.internal) console.log(`[zyninote] 內網 http://${addr.address}:${port}/`);
+  }
 });

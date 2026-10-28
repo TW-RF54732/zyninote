@@ -15,9 +15,11 @@ TCP 是 [[ch1-intro.md#osi-七層|傳輸層]] 的協定，在傳送資料前，�
 
 ### 為什麼是三次
 
-兩次無法讓 Server 確認 Client 收到了它的初始序號 $y$。
+兩次無法讓 Server 確認 Client 收到了它的初始序號 $y$。序號與確認的用途見 [[ch2-tcp.mdx#可靠傳輸|可靠傳輸]]。
 
 ## TCP Flags {#tcp-flags .fold}
+
+其中 SYN、ACK 用於 [[ch2-tcp.mdx#three-way-handshake|三次握手]]。
 
 | Flag | 意義 |
 |---|---|
@@ -32,7 +34,7 @@ TCP 是 [[ch1-intro.md#osi-七層|傳輸層]] 的協定，在傳送資料前，�
 
 ## 可靠傳輸
 
-TCP 用序號、確認與重傳保證資料不遺失也不重複。估計的 RTT 為：
+TCP 用序號、確認與重傳保證資料不遺失也不重複。RTT 包含 [[ch1-intro.md#傳播延遲|傳播延遲]] 與其他 [[ch1-intro.md#延遲|節點延遲]]，估計的 RTT 為：
 
 $$
 \text{EstimatedRTT} = (1 - \alpha) \cdot \text{EstimatedRTT} + \alpha \cdot \text{SampleRTT}

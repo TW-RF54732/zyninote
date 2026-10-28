@@ -9,6 +9,7 @@
 ```sh
 npm install
 npm run dev        # http://localhost:5180/（可用 PORT 環境變數改埠號）
+npm run dev -- --lan   # 同時開放內網（0.0.0.0），啟動時列出內網網址；預設只聽 localhost（HOST 環境變數可指定位址）
 npm run check      # 連結檢查：列出所有問題，有錯誤時 exit code 為 1
 npm test           # 管線單元測試
 npm run typecheck

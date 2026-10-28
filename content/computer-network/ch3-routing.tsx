@@ -16,7 +16,10 @@ export default function Routing() {
       </p>
 
       <Section id="link-state" title="鏈結狀態">
-        <p>每個路由器知道整個網路拓撲，用 Dijkstra 演算法算出最短路徑。</p>
+        <p>
+          每個路由器知道整個網路拓撲，用 Dijkstra 演算法算出最短路徑；與只問鄰居的{" "}
+          <Link to="ch3-routing.tsx#distance-vector" quiet>距離向量</Link> 相對。路徑成本常以 <Link to="ch1-intro.md#延遲" quiet>延遲</Link> 衡量。
+        </p>
         <Section id="dijkstra" title="Dijkstra 步驟" fold>
           <ol>
             <li>起點距離設為 0，其他設為無限大。</li>
@@ -27,7 +30,10 @@ export default function Routing() {
       </Section>
 
       <Section id="distance-vector" title="距離向量">
-        <p>每個路由器只和鄰居交換距離表，依 Bellman-Ford 方程式更新。</p>
+        <p>
+          每個路由器只和鄰居交換距離表，依 Bellman-Ford 方程式更新；對照需要全網拓撲的{" "}
+          <Link to="ch3-routing.tsx#link-state" quiet>鏈結狀態</Link>。
+        </p>
         <Section id="count-to-infinity" title="無限計數問題">
           <p>壞消息傳得慢：鏈路斷掉時，距離可能一點一點往上加。</p>
         </Section>
