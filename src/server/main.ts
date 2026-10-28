@@ -89,7 +89,7 @@ httpServer.on("request", async (req, res) => {
 
 httpServer.listen(port, host, () => {
   // Only a vault that actually started becomes the default for the next start.
-  rememberVault(contentDir);
+  rememberVault(contentDir, root);
   console.log(`[zyninote] http://localhost:${port}/`);
   if (!lan) return;
   for (const addr of Object.values(networkInterfaces()).flat()) {

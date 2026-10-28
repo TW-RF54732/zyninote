@@ -14,7 +14,13 @@ Zyninote 是學習用的筆記系統：使用者在 vault 裡寫 `.md`／`.mdx`�
 - **vault**：筆記資料夾，底下直接是各科目資料夾（裡面有 `_subject.md`）。在 app repo 裡就是 `content/`；也可能是任何外部資料夾。
 - **app**：`package.json` 的 `name` 是 `zyninote`、有 `src/server/check.ts` 的資料夾。用來跑檢查。
 
-不確定 vault 在哪就問使用者，不要猜。`~/.zyninote/last.json` 記錄了上次開啟的 vault，可以參考。
+先讀 `~/.zyninote/last.json`：`vault` 是上次開啟的 vault，`app` 是 app 資料夾（`{ "vault": "...", "app": "..." }`）。工作目錄常常是 vault 或它的上層，app 在別的地方，要從這裡找。
+
+- 這份 skill 的原始檔在 `<app>/skills/zyninote-notes/`（`references/`、`scripts/` 也在那）。
+- `.tsx` 與互動元件 `import ... from "zyninote"` 的 API（`Section`、`Link`、`Interactive`）定義在 `<app>/src/runtime/`，不確定 props 時直接讀那裡。
+- 共用元件可用的 CSS 變數在 `<app>/src/client/styles.css` 的 `:root`。
+
+vault 跟工作目錄或使用者提到的資料夾對不上、或 `last.json` 沒有 `app` 時，就問使用者，不要猜。
 
 ## 2. 動手前先看現況
 

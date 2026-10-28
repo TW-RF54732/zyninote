@@ -21,7 +21,7 @@ npm run typecheck
 npm run dev -- --vault D:\Notes     # 或 ZYNINOTE_VAULT=D:\Notes；check 也吃同樣參數
 ```
 
-優先順序：`--vault` > `ZYNINOTE_VAULT` > 上次成功啟動的 vault（`~/.zyninote/last.json`）> `./content`。快取放在 `<vault>/.zyninote/`。
+優先順序：`--vault` > `ZYNINOTE_VAULT` > 上次成功啟動的 vault（`~/.zyninote/last.json`）> `./content`。快取放在 `<vault>/.zyninote/`。`last.json` 同時記錄 app 資料夾（`app`），讓在 vault 裡工作的 AI 找得到 skill、`src/runtime/` 與檢查指令；skill 的原始檔在 `skills/zyninote-notes/`，安裝由使用者自行處理（例如連結或複製到 `~/.claude/skills/`）。
 
 ## 結構
 

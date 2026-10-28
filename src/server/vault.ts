@@ -52,11 +52,14 @@ export function resolveVault(root: string): string {
   throw new Error("[zyninote] 沒有指定 vault，請用 --vault <資料夾> 或 ZYNINOTE_VAULT 指定");
 }
 
-/** Remembers the vault for the next start without --vault. Failure only costs the convenience. */
-export function rememberVault(vault: string) {
+/**
+ * Remembers the vault for the next start without --vault. Failure only costs the convenience.
+ * Also records the app folder, so an agent working inside the vault can find the skill, runtime and checker.
+ */
+export function rememberVault(vault: string, app: string) {
   try {
     mkdirSync(APP_DIR, { recursive: true });
-    writeFileSync(LAST_FILE, `${JSON.stringify({ vault }, null, 2)}\n`);
+    writeFileSync(LAST_FILE, `${JSON.stringify({ vault, app }, null, 2)}\n`);
   } catch {}
 }
 
