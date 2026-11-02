@@ -23,6 +23,15 @@ npm run dev -- --vault D:\Notes     # 或 ZYNINOTE_VAULT=D:\Notes；check 也吃
 
 優先順序：`--vault` > `ZYNINOTE_VAULT` > 上次成功啟動的 vault（`~/.zyninote/last.json`）> `./content`。快取放在 `<vault>/.zyninote/`。`last.json` 同時記錄 app 資料夾（`app`），讓在 vault 裡工作的 AI 找得到 skill、`src/runtime/` 與檢查指令；skill 的原始檔在 `skills/zyninote-notes/`，安裝由使用者自行處理（例如連結或複製到 `~/.claude/skills/`）。
 
+### 桌面殼（臨時，自用）
+
+```sh
+npm run app            # Electron 視窗，背景跑同一個 server（埠 5181，可與 npm run dev 同時開）
+npm run app:shortcut   # 在桌面與開始功能表建立 Zyninote 捷徑，之後雙擊即可，不需要終端
+```
+
+`electron/main.mjs` 直接從 repo 執行，不打包：用 Electron 內建的 Node（`ELECTRON_RUN_AS_NODE`）跑 `--import tsx src/server/main.ts`，server 程式不需要為此修改；改了程式碼後重開 app 就生效。選單「檔案 → 開啟 vault…」（Ctrl+O）會用 `--vault` 重啟 server。server 的輸出寫在 `%APPDATA%\zyninote\logs\server.log`。外部連結交給系統瀏覽器開啟。正式打包（安裝檔、asar 與 node_modules 的處理、可寫入的快取位置、圖示）等功能完成後再做。
+
 ## 結構
 
 ```
