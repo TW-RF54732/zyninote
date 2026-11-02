@@ -18,6 +18,7 @@
   --error: #e5a4a4;
   --error-line: #553333;
   --error-bg: #2a1c1c;
+  --window-close: #c42b1c;
   /* Type scale: nothing below --fs-sm */
   --fs-sm: 14px;
   --fs-body: 16px;
@@ -30,7 +31,9 @@
   --radius: 12px;
   --radius-pill: 999px;
   --shadow-float: 0 0 0 1px rgb(255 255 255 / .06), 0 18px 48px rgb(0 0 0 / .55);
-  --header-h: 60px;
+  /* --bar-h is the top bar's own height; --header-h is how much of the page it covers (0 in the desktop shell). */
+  --bar-h: 60px;
+  --header-h: var(--bar-h);
   --rail: 240px;
   --gutter: clamp(16px, 3vw, 64px);
   --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -65,7 +68,7 @@ main { flex: 1; outline: none; }
 
 /* Top bar: full-width sticky strip; the header inside keeps the container width and its thin rule. */
 .topbar { position: sticky; top: 0; z-index: 16; background: var(--background); }
-.header { height: var(--header-h); display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); }
+.header { height: var(--bar-h); display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); }
 .header-path { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; }
 .header-path > * { flex-shrink: 0; }
 .header-path a:hover { color: var(--text); }
@@ -78,6 +81,38 @@ main { flex: 1; outline: none; }
 .nav-toggle svg { fill: none; stroke: currentColor; stroke-width: 1.5; }
 .nav-toggle:hover { color: var(--text); background: var(--surface); }
 .nav-toggle[aria-pressed="true"] { color: var(--text); }
+
+/* Desktop shell (electron/, src/client/shell.ts): no native title bar. The top bar floats over the page and only slides
+   in when the mouse touches the top edge (data-bar) or something in it has focus; it is the window's drag region and
+   carries the window buttons. The page scrollbar keeps its thin gutter (so nothing shifts) but is invisible until the
+   mouse nears the right edge (data-scrollbar). */
+html[data-shell="electron"] { --header-h: 0px; scrollbar-width: thin; scrollbar-color: transparent transparent; }
+html[data-shell="electron"][data-scrollbar] { scrollbar-color: var(--line-strong) transparent; }
+html[data-shell="electron"] body { scrollbar-color: var(--line-strong) transparent; }
+/* Inner scrollers (page TOC, sidebar, code blocks, panels) likewise show their thumb only while hovered. */
+html[data-shell="electron"] body *:not(:hover) { scrollbar-color: transparent transparent; }
+html[data-shell="electron"] .topbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 32;
+  padding-right: 184px;
+  -webkit-app-region: drag;
+  transform: translateY(-100%);
+  visibility: hidden;
+  transition: transform 180ms cubic-bezier(.2, .8, .2, 1), visibility 0s 180ms;
+}
+html[data-shell="electron"][data-bar] .topbar, html[data-shell="electron"] .topbar:focus-within {
+  transform: none;
+  visibility: visible;
+  box-shadow: 0 12px 32px rgb(0 0 0 / .45);
+  transition: transform 180ms cubic-bezier(.2, .8, .2, 1);
+}
+html[data-shell="electron"] .topbar :is(a, button, input, .search-panel) { -webkit-app-region: no-drag; }
+.window-controls { position: absolute; top: 0; right: 0; height: var(--bar-h); display: flex; }
+.window-controls button { width: 46px; padding: 0; border: 0; background: transparent; color: var(--faint); cursor: pointer; transition: color 150ms, background 150ms; }
+.window-controls svg { display: block; margin: auto; fill: none; stroke: currentColor; stroke-width: 1.2; }
+.window-controls button:hover { color: var(--text); background: var(--surface-hover); }
+.window-controls .window-close:hover { color: #fff; background: var(--window-close); }
 
 /* Global sidebar: subjects → files. It occupies exactly the left rail (gutter + rail column). Docked on directory
    pages it looks like part of the page; while reading it floats over the page TOC with a surface and shadow. */

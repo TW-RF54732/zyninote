@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { createWriteStream, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, dialog, Menu, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 
 const repo = dirname(dirname(fileURLToPath(import.meta.url)));
 const PORT = 5181;
@@ -83,12 +83,26 @@ function stopServer() {
 }
 
 function createWindow() {
-  win = new BrowserWindow({ width: 1280, height: 860, backgroundColor: "#141414", show: false, title: "Zyninote" });
+  // No native title bar or menu bar: the page's top bar slides in when the mouse reaches the top edge (Zen-style) and
+  // carries the window buttons and the menu (src/client/shell.ts). Menu accelerators still work.
+  win = new BrowserWindow({
+    width: 1280,
+    height: 860,
+    backgroundColor: "#141414",
+    show: false,
+    title: "Zyninote",
+    titleBarStyle: "hidden",
+    autoHideMenuBar: true,
+    webPreferences: { preload: join(repo, "electron", "preload.cjs") },
+  });
+  win.setMenuBarVisibility(false);
+  win.on("maximize", () => win?.webContents.send("shell:maximized", true));
+  win.on("unmaximize", () => win?.webContents.send("shell:maximized", false));
   win.once("ready-to-show", () => win?.show());
   // Show the window right away anyway; the first index can take a while.
   setTimeout(() => win?.show(), 300);
   win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(
-    `<body style="background:#141414;color:#888;font:16px system-ui;display:grid;place-items:center;height:90vh">索引中…</body>`,
+    `<body style="background:#141414;color:#888;font:16px system-ui;display:grid;place-items:center;height:90vh;-webkit-app-region:drag">索引中…</body>`,
   )}`);
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -102,13 +116,18 @@ function createWindow() {
   win.on("closed", () => (win = undefined));
 }
 
+ipcMain.on("shell:minimize", () => win?.minimize());
+ipcMain.on("shell:maximize", () => (win?.isMaximized() ? win.unmaximize() : win?.maximize()));
+ipcMain.on("shell:close", () => win?.close());
+ipcMain.on("shell:menu", (_event, x, y) => win && Menu.getApplicationMenu()?.popup({ window: win, x, y }));
+
 async function openVault() {
   if (!win) return;
   const result = await dialog.showOpenDialog(win, { title: "開啟 vault", properties: ["openDirectory"], defaultPath: vault || undefined });
   if (result.canceled || !result.filePaths[0]) return;
   await stopServer();
   win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(
-    `<body style="background:#141414;color:#888;font:16px system-ui;display:grid;place-items:center;height:90vh">索引中…</body>`,
+    `<body style="background:#141414;color:#888;font:16px system-ui;display:grid;place-items:center;height:90vh;-webkit-app-region:drag">索引中…</body>`,
   )}`);
   startServer(["--vault", result.filePaths[0]]);
 }

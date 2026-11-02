@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useTree } from "../data.ts";
 import { NavToggle } from "./NavSidebar.tsx";
 import { Search } from "./Search.tsx";
+import { WindowControls } from "./WindowControls.tsx";
 
 /** Sticky top bar: sidebar toggle, breadcrumbs (Zyninote / subject / note), search and the problem count. */
 export function Header() {
@@ -47,6 +48,7 @@ export function Header() {
           )}
         </div>
       </header>
+      <WindowControls />
     </div>
   );
 }

@@ -30,7 +30,7 @@ npm run app            # Electron 視窗，背景跑同一個 server（埠 5181�
 npm run app:shortcut   # 在桌面與開始功能表建立 Zyninote 捷徑，之後雙擊即可，不需要終端
 ```
 
-`electron/main.mjs` 直接從 repo 執行，不打包：用 Electron 內建的 Node（`ELECTRON_RUN_AS_NODE`）跑 `--import tsx src/server/main.ts`，server 程式不需要為此修改；改了程式碼後重開 app 就生效。選單「檔案 → 開啟 vault…」（Ctrl+O）會用 `--vault` 重啟 server。server 的輸出寫在 `%APPDATA%\zyninote\logs\server.log`。外部連結交給系統瀏覽器開啟。正式打包（安裝檔、asar 與 node_modules 的處理、可寫入的快取位置、圖示）等功能完成後再做。
+`electron/main.mjs` 直接從 repo 執行，不打包：用 Electron 內建的 Node（`ELECTRON_RUN_AS_NODE`）跑 `--import tsx src/server/main.ts`，server 程式不需要為此修改；改了程式碼後重開 app 就生效。選單「檔案 → 開啟 vault…」（Ctrl+O）會用 `--vault` 重啟 server。server 的輸出寫在 `%APPDATA%\zyninote\logs\server.log`。外部連結交給系統瀏覽器開啟。視窗沒有原生標題列與選單列（Zen browser 風格）：頁面的頂部列在桌面殼裡改為浮動、平常藏起來，滑鼠碰到視窗最上緣才滑出（搜尋框有焦點時也保持顯示），它同時是拖曳區並帶有選單（☰，即原本的檔案／編輯／檢視）與最小化／最大化／關閉按鈕；頁面卷軸只在滑鼠靠近右緣時顯示，其他捲動區（本頁目錄、側欄、程式碼區塊）只在滑鼠移上去時顯示卷軸。視窗按鈕經 `electron/preload.cjs` 的 `window.zyninoteShell` 呼叫主程序；一般瀏覽器裡沒有這個物件，`src/client/shell.ts` 不做任何事，外觀不變。正式打包（安裝檔、asar 與 node_modules 的處理、可寫入的快取位置、圖示）等功能完成後再做。
 
 ## 結構
 
